@@ -214,9 +214,10 @@ main (int argc, char **argv)
 	    }
 	    /* we don't need to copy the uninitialized data! */
 	} else {
-	    fprintf(stderr, "Unknown segment type: %s\n", sections[i].s_name);
-            unlink(noffFileName);
-	    exit(1);
+        printf("WARNING: ignoring segment type \"%s\".\n", sections[i].s_name);
+//	    fprintf(stderr, "Unknown segment type: %s\n", sections[i].s_name);
+//            unlink(noffFileName);
+//	    exit(1);
 	}
     }
     lseek(fdOut, 0, 0);
