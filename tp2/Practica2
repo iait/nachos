@@ -1,5 +1,4 @@
 
-ALUMNOS: Ait, Ismael  ; Pajón, Manuel ; Postan, Ezequiel
 
         #############################################################################################
 
@@ -10,9 +9,10 @@ ALUMNOS: Ait, Ismael  ; Pajón, Manuel ; Postan, Ezequiel
 
         #############################################################################################
 
-   1. ¿Cuánta memoria tiene la máquina simulada para NACHOS?
 
-En disk.h se define  SectorSize = 128 que representa la cantidad de bytes por sector de disco.
+    1. ¿Cuánta memoria tiene la máquina simulada para NACHOS?
+
+En disk.h se define SectorSize = 128 que representa la cantidad de bytes por sector de disco.
 Luego en machine.h se define
 const int PageSize = SectorSize;        // set the page size equal to
                                         // the disk sector size, for
@@ -24,17 +24,21 @@ const int MemorySize = NumPhysPages * PageSize;
 En machine.cc:
     mainMemory = new char[MemorySize];
 
-Por lo tanto la memoria es de 4096 bytes = 4Kb
+Por lo tanto, la memoria física es de 32 * 8 bytes = 4096 bytes = 4KB
+
 
         #############################################################################################
 
-2. ¿Cómo cambiaría ese valor?
 
-        Aumentando el número de páginas físicas (cambiando el valor de NumPhysPages definido en machine.h)
+    2. ¿Cómo cambiaría ese valor?
+
+Aumentando el número de páginas físicas (cambiando el valor de NumPhysPages definido en machine.h)
+
 
         #############################################################################################
 
-3. ¿De qué tamaño es un disco?
+
+    3. ¿De qué tamaño es un disco?
 
 Definido en disk.h:
         const int SectorSize = 128;     // number of bytes per disk sector
@@ -49,172 +53,112 @@ Definido en disk.cc:
         #define DiskSize        (MagicSize + (NumSectors * SectorSize))
 
 Concluimos que: 
-El tamaño del archivo que contiene al disco es de sizeof(int) + 1024*128 = 131072 + sizeof(int) bytes que es 
-+o- 131076 bytes
+El tamaño del archivo que contiene al disco es de sizeof(int) + 1024*128 bytes = sizeof(int) + 131072 bytes
+En mi máquina el tamaño del int es 4 bytes por lo que el tamaño del archivo del disco resulta 131076 bytes.
 
-El sizeof int no es parte del disco, sino que es un número de identificación del archivo. Por lo que el 
-disco tiene 131072 bytes = 128 KB
+Los 4 bytes para el entero se reservan para almacenar un número (llamado MagicNumber) que identifique al 
+archivo y no sea confundido con otro archivo que no sea disco de nachos, por lo que no forma parte útil del
+disco.
+El tamaño del disco es encontes 131072 bytes = 128 KB
  
-        #############################################################################################
-
-4. ¿Cuántas instrucciones del MIPS simula NACHOS?
-
-        En mipssim.h se definen 61 opcode de mips
-        Se ejecutan las que se especifican en el switch de machine/mipssim.cc.
-
 
         #############################################################################################
 
-5. Explicar el código que procesa la instrucción ''add''
+    4. ¿Cuántas instrucciones del MIPS simula NACHOS?
+
+En mipssim.h se definen 60 opcode de MIPS.
+Las implementaciones de estas instrucciones están dentro de la función Machine::OneInstruction en mipssim.cc
+
+
+        #############################################################################################
+
+
+    5. Explicar el código que procesa la instrucción ''add''
 
 Extraído de mipssim.cc:
 
-      case OP_ADD:
-        sum = registers[(int)instr->rs] + registers[(int)instr->rt];
-        if (!((registers[(int)instr->rs] ^ registers[(int)instr->rt]) & SIGN_BIT) &&
-            ((registers[(int)instr->rs] ^ sum) & SIGN_BIT)) {
-            RaiseException(OverflowException, 0);
-            return;
-        }
-        registers[(int)instr->rd] = sum;
-        break;
+  case OP_ADD:
+    sum = registers[(int)instr->rs] + registers[(int)instr->rt];
+    if (!((registers[(int)instr->rs] ^ registers[(int)instr->rt]) & SIGN_BIT) &&
+        ((registers[(int)instr->rs] ^ sum) & SIGN_BIT)) {
+        RaiseException(OverflowException, 0);
+        return;
+    }
+    registers[(int)instr->rd] = sum;
+    break;
 
-        Los operandos están en register[instr->rs] y register[instr->rt]. 
-        Se suman los operandos y se guardan en sum
-        La primera parte de la  guarda del if comprueba si los operandos tienen el mismo signo. 
-        Si tienen distinto signo es imposible que haya overflow. 
-        Si tienen igual signo pasan a la segunda parte de la guarda.
-        La segunda condición comprueba que la suma no haya cambiado de signo. De haber ocurrido esto hubo 
-        overflow y ejecuta un excepción.
+Primero se decodifica la instrucción, con lo que se obtienen los números de registros fuentes (rs y rt) 
+y el número de registro destino (rd).
+Se suman los enteros que actualmente están en los registros rs y rt, y se guarda el resultado en la 
+variable sum.
+Se comprueba si hubo overflow.
+Si ambos operandos tienen el mismo signo pero distinto al signo del resultado es porque hubo overflow.
+En ese caso, se lanza una excepción del tipo OverflowException.
+Si no hubo overflow, se guarda el resultado de la suma en el registro rd.
+
 
         ############################################################################################
 
-6. Nombrar los archivos fuente en los que figuran las funciones y métodos llamados por el main de NACHOS al 
-ejecutarlo en el directorio threads (hasta dos niveles de profundidad).
 
-+-----------------------------+--------------------------+----------+------------------------------------+
-|       FUNCIÓN/MÉTODO        | ARCHIVO EN QUE SE DEFINE | LLAMANTE |            DESCRIPCIÓN             |
-+-----------------------------+--------------------------+----------+------------------------------------+
-| DEBUG('t', "Entering main") |    threads/utility.cc    |   main   |Imprime mensajes de debug según las |
-|                             |                          |          |          banderas setteadas        |
-+-----------------------------+--------------------------+----------+------------------------------------+
-|    DebugIsEnabled(flag)     |    threads/utility.cc    |  DEBUG   |Verifica si se han setteado flags de|
-|                             |                          |          |               debug                |
-+-----------------------------+--------------------------+----------+------------------------------------+
-|   Initialize(argc, argv);   |     threads/system.cc    |   main   |                                    |
-+-----------------------------+--------------------------+----------+------------------------------------+
-|RandomInit(atoi(*(argv+1))); |     machine/sysdep.cc    |Initialize|   Inicializa generador de números  |
-|                             |                          |          |    aleatorios (equivale a srand)   |
-+-----------------------------+--------------------------+----------+------------------------------------+
-|    DebugInit(debugArgs);    |    threads/utility.cc    |Initialize|      Setea las flags de DEBUG      | 
-|                             |                          |          |                                    |
-+-----------------------------+--------------------------+----------+------------------------------------+
-|   stats = new Statistics(); |     machine/stats.cc     |Initialize|  Constructor de clase. Recolecta   |
-|                             |                          |          | estadísticas (escrit de disco, etc)|
-+-----------------------------+--------------------------+----------+------------------------------------+
-|  interrupt = new Interrupt; |   machine/interrupt.cc   |Initialize|    start up interrupt handling     |
-+-----------------------------+--------------------------+----------+------------------------------------+
-| scheduler = new Scheduler();|   threads/scheduler.cc   |Initialize|  Initialize the list of ready but  |
-|                             |                          |          |    not running threads to empty.   |
-+-----------------------------+--------------------------+----------+------------------------------------+
-| timer = new                 |                          |          |Initialize a hardware timer device. |
-| Timer(TimerInterruptHandler,|     machine/timer.cc     |Initialize|Save the place to call on each      |
-| 0, randomYield);            |                          |          |interrupt, and then arrange for the |
-|                             |                          |          |timer to start generating interrupts|
-+-----------------------------+--------------------------+----------+------------------------------------+
-|    new Thread("main");      |    threads/thread.cc     |Initialize|Initialize a thread control block,so|
-|                             |                          |          |that we can then call Thread::Fork  |
-+-----------------------------+--------------------------+----------+------------------------------------+
-|currentThread->              |   machine/interrupt.h    |Initialize|       Setea estado del proceso     |
-|        setStatus(RUNNING);  |                          |          |                                    |
-+-----------------------------+--------------------------+----------+------------------------------------+
-|    interrupt->Enable();     |   machine/interrupt.cc   |Initialize|     Activa las interrupciones      |
-+-----------------------------+--------------------------+----------+------------------------------------+
-|  CallOnUserAbort(Cleanup);  |     machine/sysdep.cc    |Initialize|  Llama a Cleanup si pulsan  Ctl+C  |
-+-----------------------------+--------------------------+----------+------------------------------------+
-| preemptiveScheduler =       |                          |          | Set up time slicing between kernel |
-|  new PreemptiveScheduler(); |   threads/preemptive.h   |Initialize| threads, el constructor está vacío |
-|                             |                          |          | la clase entera es la función SetUp|
-+-----------------------------+--------------------------+----------+------------------------------------+
-|                             |                          |          |  Set up the preemptive scheduler   |
-| preemptiveScheduler->       |                          |          |   The 'timeSliceLength' argument   |
-|       SetUp(timeSlice);     |  threads/preemptive.cc   |Initialize|       means how many machine       |
-|                             |                          |          |   instructions will last the time  |
-|                             |                          |          |    slice for every kernel thread   |
-+-----------------------------+--------------------------+----------+------------------------------------+
-|        ThreadTest();        |  threads/threadtest.cc   |   main   |      Crea threads de prueba        |
-+-----------------------------+--------------------------+----------+------------------------------------+
-|  DEBUG('t',                 |   threads/utility.cc     |ThreadTest|       Comantada anteriormente      |
-|     "Entering SimpleTest"); |                          |          |                                    |
-+-----------------------------+--------------------------+----------+------------------------------------+
-| Thread* newThread =         |    threads/thread.cc     |ThreadTest|       Comantada anteriormente      |
-|   new Thread (threadname);  |                          |          |                                    |
-+-----------------------------+--------------------------+----------+------------------------------------+
-|   newThread->Fork           |                          |          |                                    |
-|    (SimpleThread,           |    threads/thread.cc     |ThreadTest|              --------              |
-|   (void*)threadname);       |                          |          |                                    |
-+-----------------------------+--------------------------+----------+------------------------------------+
-|SimpleThread((void*)"Hilo 0")|  threads/threadtest.cc   |ThreadTest| Loop 10 times, yielding the CPU to |
-|                             |                          |          |another ready thread each iteration.|
-+-----------------------------+--------------------------+----------+------------------------------------+
-|                             |                          |          |    Pone en cola el hilo para ser   |
-|  currentThread->Finish();   |    threads/thread.cc     |   main   |              destruido             |
-|                             |                          |          |                                    |
-+-----------------------------+--------------------------+----------+------------------------------------+
-|                             |                          | current  | Change interrupts to be enabled or |
-| interrupt->SetLevel(IntOff);|   machine/interrupt.cc   | Thread-> |   disabled, and if interrupts are  |
-|                             |                          | Finish();|  being enabled, advance simulated  |
-|                             |                          |          |      time by calling OneTick().    |
-+-----------------------------+--------------------------+----------+------------------------------------+
-|                             |                          | current  |                                    |
-|         getName();          |    threads/thread.h      | Thread-> |    Devuelve el nombre del hilo     |
-|                             |                          | Finish();|                                    |
-+-----------------------------+--------------------------+----------+------------------------------------+
-|                             |                          |          |  Relinquish the CPU, because the   |
-|                             |                          |          | current thread is blocked waiting  |
-|                             |                          | current  |   on a synchronization variable    |
-|          Sleep();           |    threads/thread.cc     | Thread-> |  (Semaphore, Lock, or Condition).  |
-|                             |                          | Finish();| Eventually, some thread will wake  |
-|                             |                          |          | this thread up, and put it back on |
-|                             |                          |          |   the ready queue, so that it can  |
-|                             |                          |          |           be re-scheduled.         |
-+-----------------------------+--------------------------+----------+------------------------------------+
+    6. Nombrar los archivos fuente en los que figuran las funciones y métodos llamados por el main de NACHOS
+al ejecutarlo en el directorio threads (hasta dos niveles de profundidad).
+
+int main(int argc, char **argv) // threads/main.cc
+    void DEBUG(char flag, const char *format, ...) // threads/utility.cc
+        bool DebugIsEnabled(char flag) // threads/utility.cc
+    void Initialize(int argc, char **argv) // threads/system.cc
+        void DebugInit(const char *flagList) // threads/utility.cc
+        Statistics::Statistics() // machine/stats.cc
+        Interrupt::Interrupt() // machine/interrupt.cc
+        Scheduler::Scheduler() // threads/scheduler.cc
+        Timer::Timer(VoidFunctionPtr timerHandler, void* callArg, bool doRandom) // machine/timer.cc
+        Thread::Thread(const char* threadName) // threads/thread.cc
+        void Thread::setStatus(ThreadStatus st) // threads/thread.h
+        void Interrupt::Enable() // machine/interrupt.cc
+        void CallOnUserAbort(VoidNoArgFunctionPtr func) // machine/sysdep.cc
+    void ThreadTest() // threads/threadtest.cc
+        void DEBUG(char flag, const char *format, ...) // threads/utility.cc
+        Thread::Thread(const char* threadName) // threads/thread.cc
+        void Thread::Fork(VoidFunctionPtr func, void* arg) // threads/thread.cc
+        void SimpleThread(void* name) // threads/threadtest.cc
+    void Thread::Finish() // threads/thread.cc
+        IntStatus Interrupt::SetLevel(IntStatus now) // machine/interrupt.cc
+        const char* getName() // threads/thread.h
+        void DEBUG(char flag, const char *format, ...) // threads/utility.cc
+        void Thread::Sleep() // threads/threas.cc
 
         
         #############################################################################################
 
-7. ¿Porqué se prefiere emular una CPU en vez de utilizar directamente la CPU existente?
 
-        - Para poder usar los debuggers.
-        - Para poder adaptarlo fácilmente a los recusos de la máquina disponible.
-        
-        #############################################################################################
+    7. ¿Porqué se prefiere emular una CPU en vez de utilizar directamente la CPU existente?
 
-8. Probar el efecto de las distintas banderas de debug.
-
-
-Hemos probado: 
-
-//      The debugging routines allow the user to turn on selected
-//      debugging messages, controllable from the command line arguments
-//      passed to Nachos (-d).  You are encouraged to add your own
-//      debugging flags.  The pre-defined debugging flags are:
-//
-//      '+' -- turn on all debug messages
-//      't' -- thread system
-//      's' -- semaphores, locks, and conditions
-//      'i' -- interrupt emulation
-//      'm' -- machine emulation (USER_PROGRAM)
-//      'd' -- disk emulation (FILESYS)
-//      'f' -- file system (FILESYS)
-//      'a' -- address spaces (USER_PROGRAM)
-//      'n' -- network emulation (NETWORK)
+El sistema operativo de Nachos se desarrolló con fines educativos. Al emular una CPU se puede tener 
+mayor control en la ejecución de los programas de usuario y se facilita su depuración. Adicionalmente,
+la arquitectura MIPS simulada es más sencilla por ser de tipo RISC.
 
 
         #############################################################################################
 
 
-   9. ¿Qué efecto hacen las macros ASSERT y DEBUG definidas en ''utility.h''?
+    8. Probar el efecto de las distintas banderas de debug.
+
+Se probaron las siguientes banderas:
+    ’+’ - muestra todos los mensajes de debug.
+    ’t’ - mensajes correspondiente a los threads.
+    ’s’ - mensajes relacionados con semáforos, locks y condiciones.
+    ’i’ - emulación de interrupciones.
+    ’m’ - emulación de la máquina que ejecuta los programas de usuario. (USER_PROGRAM)
+    ’d’ - emulación del disco. (FILESYS)
+    ’f’ - sistema de archivos. (FILESYS)
+    ’a’ - espacio de direcciones. (USER_PROGRAM)
+    ’n’ - emulación de la red (NETWORK)
+
+
+        #############################################################################################
+
+
+    9. ¿Qué efecto hacen las macros ASSERT y DEBUG definidas en ''utility.h''?
 
 //----------------------------------------------------------------------
 // ASSERT
@@ -233,11 +177,8 @@ Hemos probado:
     }
 
 Si la condición pasada a ASSERT es distinta de 0 entonces todo sigue su curso normal
-Si la condición es falsa, termina el programa e imprime un emnsaje de error.
-Se usa para verificar que se cumplen ciertas condiciones en distintas partes del programa.
-
-
-
+Si la condición es falsa, imprime un mensaje de error y termina el programa.
+Se usa para verificar que se cumplan ciertas condiciones en distintas partes del programa.
 
 De utility.cc:
 
@@ -260,115 +201,93 @@ DEBUG(char flag, const char *format, ...)
     }
 }
 
-DEBUG imprime mensajes dependiendo de las banderas activadas al iniciar nachos.
-Como lo dice el comentario del código es un printf condicionado a la bandera 
-que se le pasa como primer argumento.
-
-        #############################################################################################
-
-  10. ¿Dónde están definidas las constantes USER_PROGRAM, FILESYS_NEEDED, FILESYS_STUB y NETWORK?
-
-        Se definen en tiempo de compilación por medio de los siguientes Makefiles
-
-        - USER_PROGRAM:
-                filesys/Makefile
-                network/Makefile
-                userprog/Makefile
-                vm/Makefile
-        
-        - FILESYS_NEEDED     
-                filesys/Makefile
-                network/Makefile
-                userprog/Makefile
-                vm/Makefile
-
-        - FILESYS_STUB 
-                userprog/Makefile
-                vm/Makefile
-
-        - NETWORK
-                network/Makefile
+DEBUG imprime mensajes dependiendo de las banderas activadas por medio de la línea de 
+comandos al iniciar nachos.
+Es similar a un printf condicionado por la bandera que se le pasa como primer argumento.
 
 
         #############################################################################################
 
-  11. ¿Cuál es la diferencia entre las clases ''list'' y ''synchlist''?
 
-La diferencia es que synchlist tiene implementadas condiciones de concurrencia. Por ejemplo:
-- Para borrar un elemento de la lista espera hasta que haya uno.
-- La synchlist posse un lock y una variable de condición
+    10. ¿Dónde están definidas las constantes USER_PROGRAM, FILESYS_NEEDED, FILESYS_STUB y NETWORK?
+
+Se definen en tiempo de compilación con la opción -D
+En el archivo Makefile.common se agrega $(DEFINES) a las banderas de compilación
+Cada subcarpeta (threads, userprog, vm, filesys y network) especifica el valor de DEFINES
+
+- USER_PROGRAM:
+        filesys/Makefile
+        network/Makefile
+        userprog/Makefile
+        vm/Makefile
+
+- FILESYS_NEEDED     
+        filesys/Makefile
+        network/Makefile
+        userprog/Makefile
+        vm/Makefile
+
+- FILESYS_STUB 
+        userprog/Makefile
+        vm/Makefile
+
+- NETWORK
+        network/Makefile
+
+
+        #############################################################################################
+
+
+    11. ¿Cuál es la diferencia entre las clases ''list'' y ''synchlist''?
+
+Ambas implementan una lista enlazada simple pero ''synchlist'' fuerza acceso exclusivo a la lista por los
+diferentes hilos. Esto se implementa envolviendo a la implementación de ''list'' con rutinas de sincronización.
+Para esto se utiliza un lock y una variable de condición. Los hilos que intentes eliminar un elemento de 
+la lista, quedarán bloqueados si la lista esta vacía hasta que tenga algún elemento. Solo un hilo podrá tener
+acceso a la lista a la vez.
  
 
         #############################################################################################
 
-  12. ¿En qué archivos está definida la función ''main''? ¿en qué archivo está definida la función ''main'' 
+
+    12. ¿En qué archivos está definida la función ''main''? ¿en qué archivo está definida la función ''main'' 
 del ejecutable ''nachos'' del directorio ''userprog''?
 
-        Está definida en /threads/main.cc y según el Makefile que lo compile, compilará un código u otro
+La función ''main'' está definida en los varios archivos de la carpeta bin (coff2flat.c, coff2noff.c, disasm.c,
+main.c, out.c), en los programas de usuario definidos en la carpeta test (halt.c, matmult.c, shell.c, sort.c) y 
+el main del ejecutable de nachos en threads/main.cc.
+
 
         #############################################################################################
 
-  13. ¿Qué línea de comandos soporta NACHOS? ¿qué efecto hace la opción ''-rs''?
 
-Del archivo main.cc:
+    13. ¿Qué línea de comandos soporta NACHOS? ¿qué efecto hace la opción ''-rs''?
 
-// Usage: nachos -d <debugflags> -rs <random seed #>
-//              -s -x <nachos file> -c <consoleIn> <consoleOut>
-//              -f -cp <unix file> <nachos file>
-//              -p <nachos file> -r <nachos file> -l -D -t
-//              -n <network reliability> -m <machine id>
-//              -o <other machine id>
-//              -z
-//
-//    -d causes certain debugging messages to be printed (cf. utility.h)
-//    -rs causes Yield to occur at random (but repeatable) spots
-//    -z prints the copyright message
-//
-//  USER_PROGRAM
-//    -s causes user programs to be executed in single-step mode
-//    -x runs a user program
-//    -c tests the console
-//
-//  FILESYS
-//    -f causes the physical disk to be formatted
-//    -cp copies a file from UNIX to Nachos
-//    -p prints a Nachos file to stdout
-//    -r removes a Nachos file from the file system
-//    -l lists the contents of the Nachos directory
-//    -D prints the contents of the entire file system 
-//    -t tests the performance of the Nachos file system
-//
-//  NETWORK
-//    -n sets the network reliability
-//    -m sets this machine's host id (needed for the network)
-//    -o runs a simple test of the Nachos network software
+Nachos soporta las siguientes opciones de línea de comandos:
+    -d <debug flag>
+    -rs <random seed #> (provoca que se ejecute Yield repetidamente en lugares aleatorios)
+    -s (ejecución en single step mode)
+    -x <nachos file> (ejecución de programa de usuario)
+    -c <console in> <console out> (prueba de la consola)
+    -f (formatea el disco físico)
+    -cp <unix file> <nachos file> (copia un archivo unix a nachos)
+    -p <nachos file> (imprime el archivo de nachos en stdout)
+    -r <nachos file> (elimina el archivo de nachos del disco)
+    -l (lista el contenido del directorio de nachos)
+    -D (imprime el contenido del disco completo)
+    -t (prueba el sistema de archivos de nachos)
 
-La opción '-rs' hace que se al crearse el timer en la función Initialize, se cree con tercer argumento igual a True.
-Esto hace que las interrupciones ocurran de manera aleatoria.
+La opción '-rs' permite interrumpir el hilo actual de ejecución (con Yield) en intervalos aleatorios dejando
+lugar a la ejecución de otro thread. El hilo que cedió lugar podrá ser retomado posteriormente.
+
 
         #############################################################################################
 
-  14. Modificar el ejemplo del directorio threads para que se generen 5 threads en lugar de 2.
 
-        En primer lugar, genera 11 threads, no 2 :P 
-        Para resolver el ejercicio, modificamos la función 
-        
-void
-ThreadTest()
-{
-    DEBUG('t', "Entering SimpleTest");
+    14. Modificar el ejemplo del directorio threads para que se generen 5 threads en lugar de 2.
 
-    for ( int k=1; k<=10; k++) {
-      char* threadname = new char[100];
-      sprintf(threadname, "Hilo %d", k);
-      Thread* newThread = new Thread (threadname);
-      newThread->Fork (SimpleThread, (void*)threadname);
-    }
-
-    SimpleThread( (void*)"Hilo 0");
-}
-
-del archivo threads/threadtest.cc por la siguiente
+Para generar 5 threads, se modifica la condición del for de ThreadTest a k<=4.
+De esta manera, el for crea 4 hilos, estos más el hilo actual suman un total de 5.
 
 void
 ThreadTest()
@@ -381,8 +300,8 @@ ThreadTest()
       Thread* newThread = new Thread (threadname);
       newThread->Fork (SimpleThread, (void*)threadname);
     }
-
+    
     SimpleThread( (void*)"Hilo 0");
 }
 
-(Cambiamos la cota de k<=10 por  k<=4)
+Alumno : Ismael Ait
