@@ -11,6 +11,7 @@
 
 #include "copyright.h"
 #include "list.h"
+#include "synch.h"
 #include "thread.h"
 
 // The following class defines the scheduler/dispatcher abstraction -- 
@@ -27,10 +28,23 @@ class Scheduler {
 					// list, if any, and return thread.
     void Run(Thread* nextThread);	// Cause nextThread to start running
     void Print();			// Print contents of ready list
-    
+
+    // agregado para multicolas de prioridad
+    void Promote(Thread *thread);       // Promueve a la prioridad del currentThread
+
+    // agregado para join de hilos
+    void Finish(Thread *thread);
+    void Join(Thread *thread);
+
   private:
     List<Thread*> *readyList;  		// queue of threads that are ready to run,
 					// but not running
+    List<Thread*> *readyListP[11];	// Colas de prioridad
+
+    // agregado para implementación del join
+    List<Thread*> *finishedThreads;     // hilos que fueron terminados y esperan por join
+    Lock *lock;
+    Condition *condition;
 };
 
 #endif // SCHEDULER_H

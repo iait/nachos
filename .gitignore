@@ -1,13 +1,20 @@
 *.o
 *.s
+*.project
 
 code/bin/coff2noff
-
 code/test/*
 !code/test/*.c
 !code/test/*.s
 !code/test/script
 !code/test/Makefile
 !code/test/Makefile.ori
+
+tp3/code/bin/coff2noff
+tp3/code/test/*
+!tp3/code/test/*.c
+!tp3/code/test/script
+!tp3/code/test/Makefile
+!tp3/code/test/Makefile.ori
 
 **/nachos

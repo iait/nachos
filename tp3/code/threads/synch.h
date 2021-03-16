@@ -22,8 +22,8 @@
 #define SYNCH_H
 
 #include "copyright.h"
-#include "thread.h"
 #include "list.h"
+#include "thread.h"
 
 // La siguiente clase define un "sem�foro" cuyo valor es un entero positivo.
 // El sem�foro ofrece s�lo dos operaciones, P() y V():
@@ -43,6 +43,10 @@ class Semaphore {
     Semaphore(const char* debugName, int initialValue);	// set initial value
     ~Semaphore();   					// destructor
     const char* getName() { return name;}			// para depuraci�n
+
+// agregado
+    List<Thread*> *getQueue() { return queue;}
+//
 
     // Las �nicas operaciones p�blicas sobre el sem�foro
     // ambas deben ser *at�micas*
@@ -84,10 +88,11 @@ class Lock {
   // devuelve 'true' si el hilo actual es quien posee el cerrojo.
   // �til para comprobaciones en el Release() y en las variables condici�n
   bool isHeldByCurrentThread();	
-
+ 
   private:
-    const char* name;				// para depuraci�n
-    // a�adir aqu� otros campos que sean necesarios
+    const char *name;				// para depuraci�n
+    Semaphore *sem;
+    Thread *owner;
 };
 
 //  La siguiente clase define una "variable condici�n". Una variable condici�n
@@ -131,7 +136,7 @@ class Condition {
 
     // libera el objeto
     ~Condition();	
-    const char* getName() { return (name); }
+    const char* getName() { return name; }
 
     // Las tres operaciones sobre variables condici�n.
     // El hilo que invoque a cualquiera de estas operaciones debe tener
@@ -142,8 +147,9 @@ class Condition {
     void Broadcast();
 
   private:
-    const char* name;
-    // aqu� se a�aden otros campos que sean necesarios
+    const char *name;
+    Lock *lock;
+    List<Semaphore*> *sems;
 };
 
 /*

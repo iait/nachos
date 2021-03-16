@@ -77,8 +77,16 @@ class Thread {
     HostMemoryAddress* stackTop;			// the current stack pointer
     HostMemoryAddress machineState[MachineStateSize];	// all registers except for stackTop
 
+    bool joinFlag;       // indica que se va a hacer Join sobre este thread
+
+    int priority; // Va a guardar la prioridad del thread actual
+    int originalPriority; // Va a guardad la prioridad original con la que se creo el thread
+
   public:
     Thread(const char* debugName);	// initialize a Thread 
+    Thread(const char* debugName, bool flag);	// Inicializa un Thread con un flag que
+						// dice si va a ser llamado por Join
+    Thread(const char* debugName, int prio); 	//inicializa un thread con prioridad p
     ~Thread(); 				// deallocate a Thread
 					// NOTE -- thread being deleted
 					// must not be running when delete 
@@ -96,7 +104,16 @@ class Thread {
     void CheckOverflow();   			// Check if thread has 
 						// overflowed its stack
     void setStatus(ThreadStatus st) { status = st; }
-    const char* getName() { return (name); }
+    ThreadStatus getStatus() { return status; }
+
+    // agregado para multicolas de prioridad
+    int getPriority() { return priority; }
+    void setPriority(int prio) { priority = prio; }
+    int getOriginalPriority() { return originalPriority; }
+
+    void Join();            // Bloquea al llamante hasta que termine este hilo
+
+    const char* getName() { return name; }
     void Print() { printf("%s, ", name); }
 
   private:

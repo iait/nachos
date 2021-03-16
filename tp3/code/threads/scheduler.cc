@@ -28,8 +28,15 @@
 //----------------------------------------------------------------------
 
 Scheduler::Scheduler()
-{ 
-    readyList = new List<Thread*>; 
+{
+    for (int i = 0; i <= 10; i++) {
+    	readyListP[i] = new List<Thread*>; 
+    }
+    readyList = readyListP[5]; //Para mantener compatibilidad con el código original.
+
+    finishedThreads = new List<Thread*>;
+    lock = new Lock("join");
+    condition = new Condition("join", lock);
 } 
 
 //----------------------------------------------------------------------
@@ -38,8 +45,14 @@ Scheduler::Scheduler()
 //----------------------------------------------------------------------
 
 Scheduler::~Scheduler()
-{ 
-    delete readyList; 
+{
+    for (int i = 0; i <= 10; i++) {
+        delete readyListP[i];
+    }
+
+    delete finishedThreads;
+    delete lock;
+    delete condition;
 } 
 
 //----------------------------------------------------------------------
@@ -56,7 +69,10 @@ Scheduler::ReadyToRun (Thread *thread)
     DEBUG('t', "Putting thread %s on ready list.\n", thread->getName());
 
     thread->setStatus(READY);
-    readyList->Append(thread);
+
+// modificado para que agregue a la cola de la prioridad correspondiente
+    readyListP[thread->getPriority()]->Append(thread);
+
 }
 
 //----------------------------------------------------------------------
@@ -66,11 +82,19 @@ Scheduler::ReadyToRun (Thread *thread)
 // Side effect:
 //	Thread is removed from the ready list.
 //----------------------------------------------------------------------
-
+//
+// Modificado para que busque el siguiente por prioridad
+//
 Thread *
 Scheduler::FindNextToRun ()
 {
-    return readyList->Remove();
+    for (int i = 10; i >= 1; i--) {
+        if (!(readyListP[i]->IsEmpty())) {
+            return readyListP[i]->Remove();
+        }
+    }
+    
+    return readyListP[0]->Remove();
 }
 
 //----------------------------------------------------------------------
@@ -141,13 +165,67 @@ Scheduler::Run (Thread *nextThread)
 //----------------------------------------------------------------------
 
 static void
-ThreadPrint (Thread* t) {
+ThreadPrint(Thread *t) {
   t->Print();
 }
 
 void
 Scheduler::Print()
 {
-    printf("Ready list contents:\n");
-    readyList->Apply(ThreadPrint);
+    printf("Ready lists contents:\n");
+    for (int i = 10; i <= 0; i--) {
+        printf("Imprimiendo lista prioridad %d:\n", i);
+        readyListP[i]->Apply(ThreadPrint);
+        printf("\n");
+    }
 }
+
+//------------------------------------------------------------------------
+// Scheduler::Promote
+//    Promueve al hilo thread a la prioridad del hilo actual.
+//------------------------------------------------------------------------
+void Scheduler::Promote(Thread *thread)
+{
+    ASSERT(currentThread->getPriority() > thread->getPriority());
+
+    List<Thread*> *list = readyListP[thread->getPriority()];
+
+    thread->setPriority(currentThread->getPriority());
+    if (thread->getStatus() != READY) {
+        return;
+    }
+
+    list->Remove(thread);
+    ReadyToRun(thread);
+}
+
+//------------------------------------------------------------------------
+// Scheduler::Finish
+//      Agrega el hilo a una lista de terminados esperando por join.
+//      Desbloquea a los hilos que ya llamaron join.
+//------------------------------------------------------------------------
+void Scheduler::Finish(Thread *thread)
+{
+    lock->Acquire();
+    finishedThreads->Append(thread);
+    condition->Broadcast();
+    lock->Release();
+}
+
+//------------------------------------------------------------------------
+// Scheduler::Join
+//      Busca en la lista si el hilo thread ya terminó.
+//      Si todavía no terminó, se bloquea este hilo (currentThread) a la espera
+//      de que termine.
+//      Una vez que el hilo terminó, lo destruye y continúa.
+//------------------------------------------------------------------------
+void Scheduler::Join(Thread *thread)
+{
+    lock->Acquire();
+    while (!finishedThreads->Remove(thread)) {
+        condition->Wait();
+    }
+    lock->Release();
+    delete thread;
+}
+

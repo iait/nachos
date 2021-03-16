@@ -98,18 +98,104 @@ Semaphore::V()
     interrupt->SetLevel(oldLevel);
 }
 
-// Dummy functions -- so we can compile our later assignments 
 // Note -- without a correct implementation of Condition::Wait(), 
 // the test case in the network assignment won't work!
-Lock::Lock(const char* debugName) {}
-Lock::~Lock() {}
-void Lock::Acquire() {}
-void Lock::Release() {}
+Lock::Lock(const char* debugName) 
+{
+    name = debugName;
+    sem = new Semaphore(debugName, 1);
+    owner = NULL;
+}
 
-Condition::Condition(const char* debugName, Lock* conditionLock) { }
-Condition::~Condition() { }
-void Condition::Wait() { ASSERT(false); }
-void Condition::Signal() { }
-void Condition::Broadcast() { }
+Lock::~Lock() 
+{
+    delete sem;
+}
 
+void func(Thread *t) { scheduler->Promote(t); } //Para llamar apply
+void Lock::Acquire() 
+{
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);
+    ASSERT(!isHeldByCurrentThread());
+// Esta parte es para arreglar el problema de inversión de prioridades
+// la solución que aplicamos es mover el hilo de menor prioridad y toda
+// la cola del lock que está en espera a la cola del thread de mayor prioridad
+// que pide el lock. Luego volverá a su cola original al hacer Release
+    int currentPriority = currentThread->getPriority();
+    if (owner != NULL && owner->getPriority() < currentPriority){
+        scheduler->Promote(owner);
+        sem->getQueue()->Apply(func);
+    }
+//
+    sem->P();
+    owner = currentThread;
+    interrupt->SetLevel(oldLevel);
+}
 
+void Lock::Release() 
+{
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);
+    ASSERT(isHeldByCurrentThread());
+
+    // Se restaura la prioridad original del hilo en ejecución
+    currentThread->setPriority(currentThread->getOriginalPriority());
+
+    owner = NULL;
+    sem->V();
+    interrupt->SetLevel(oldLevel);
+}
+
+bool Lock::isHeldByCurrentThread()
+{
+    return owner == currentThread;
+}
+
+Condition::Condition(const char* debugName, Lock* conditionLock) 
+{
+    name = debugName;
+    lock = conditionLock;
+    sems = new List<Semaphore*>;
+}
+
+Condition::~Condition() 
+{ 
+    delete sems;
+}
+
+void Condition::Wait() 
+{
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);
+
+    Semaphore *sem = new Semaphore(currentThread->getName(), 0);
+    sems->Append(sem);
+    lock->Release();
+    sem->P();
+    lock->Acquire();
+    delete sem;
+
+    interrupt->SetLevel(oldLevel);
+}
+
+void Condition::Signal() 
+{
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);
+
+    ASSERT(lock->isHeldByCurrentThread());
+    Semaphore *sem = sems->Remove();
+    if (sem != NULL) {
+        sem->V();
+    }
+
+    interrupt->SetLevel(oldLevel);
+}
+
+void Condition::Broadcast() 
+{
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);
+
+    while(!sems->IsEmpty()) {
+        Signal();
+    }
+
+    interrupt->SetLevel(oldLevel);
+}

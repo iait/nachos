@@ -48,6 +48,8 @@ class List {
     void Append(Item item); 	// Put item at the end of the list
     Item Remove(); 	 	// Take item off the front of the list
 
+    bool Remove(Item item);     // Elimina el elemento de la lista si existe
+
     void Apply(void (*func)(Item));	// Apply "func" to all elements in list 
 
     bool IsEmpty();		// is the list empty? 
@@ -288,5 +290,53 @@ List<Item>::SortedRemove(int *keyPtr)
     return thing;
 }
 
+template <class Item>
+bool
+List<Item>::Remove(Item item)
+{
+    // si la lista está vacía el elemento no está
+    if (IsEmpty()) {
+        return false;
+    }
+
+    // si la lista tiene solo un elemento
+    if (first == last) {
+        if (first->item == item) {
+            delete first;
+            first = NULL;
+            last = NULL;
+            return true;
+        }
+        return false;
+    }
+
+    // si el item a buscar es el primero (la lista tiene más de un elemento)
+    ListNode *current = first;
+    if (first->item == item) {
+        first = first->next;
+        delete current;
+        return true;
+    }
+
+    // itera sobre la lista
+    ListNode *prev = current;
+    current = current->next;
+    while (current->item != item) {
+        if (current == last) {
+            return false; // llegó al final de la lista y no se encontró
+        }
+        prev = current;
+        current = current->next;
+    }
+    // se encontró el item en current
+    if (current == last) {
+        prev->next = NULL;
+        last = prev;
+    } else {
+        prev->next = current->next;
+    }
+    delete current;
+    return true;
+}
 
 #endif // LIST_H

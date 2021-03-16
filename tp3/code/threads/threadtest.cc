@@ -56,13 +56,20 @@ ThreadTest()
 {
     DEBUG('t', "Entering SimpleTest");
 
-    for ( int k=1; k<=10; k++) {
-      char* threadname = new char[100];
-      sprintf(threadname, "Hilo %d", k);
-      Thread* newThread = new Thread (threadname);
-      newThread->Fork (SimpleThread, (void*)threadname);
+    Thread *threads[10];
+
+    for (int k = 1; k <= 10; k++) {
+        char *name = new char[100];
+        sprintf(name, "Hilo %d", k);
+        Thread *thread = new Thread(name, true);
+        threads[k - 1] = thread;
+        thread->Fork(SimpleThread, (void *) name);
+    }
+
+    for (int k = 1; k <= 10; k++) {
+        threads[k - 1]->Join();
     }
     
-    SimpleThread( (void*)"Hilo 0");
+    SimpleThread((void*)"Hilo 0");
 }
 

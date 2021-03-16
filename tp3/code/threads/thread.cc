@@ -17,7 +17,6 @@
 #include "copyright.h"
 #include "thread.h"
 #include "switch.h"
-#include "synch.h"
 #include "system.h"
 
 // this is put at the top of the execution stack,
@@ -41,6 +40,54 @@ Thread::Thread(const char* threadName)
 #ifdef USER_PROGRAM
     space = NULL;
 #endif
+    joinFlag = false;
+    originalPriority = priority = 5;
+}
+
+
+//----------------------------------------------------------------------
+// Thread::Thread (VERSIÓN QUE AGREGA LA OPCIÓN JOIN)
+//      Initialize a thread control block, so that we can then call
+//      Thread::Fork.
+//
+//      "threadName" is an arbitrary string, useful for debugging.
+//	"flag" indica si se va a hacer Join sobre el hilo
+//----------------------------------------------------------------------
+
+Thread::Thread(const char* threadName, bool flag)
+{
+    name = threadName;
+    stackTop = NULL;
+    stack = NULL;
+    status = JUST_CREATED;
+#ifdef USER_PROGRAM
+    space = NULL;
+#endif
+    joinFlag = flag;
+    originalPriority = priority = 5;
+}
+
+//----------------------------------------------------------------------
+// Thread::Thread  VERSION QUE SETEA PRIORIDAD
+// 	Initialize a thread control block, so that we can then call
+//	Thread::Fork.
+//
+//	"threadName" is an arbitrary string, useful for debugging.
+//      "prioridad" es un entero que guarda la prioridad
+//----------------------------------------------------------------------
+
+Thread::Thread(const char* threadName, int prio)
+{
+    name = threadName;
+    stackTop = NULL;
+    stack = NULL;
+    status = JUST_CREATED;
+#ifdef USER_PROGRAM
+    space = NULL;
+#endif
+    joinFlag = false;
+    ASSERT(prio <= 10 && prio >= 0);
+    originalPriority = priority = prio;
 }
 
 //----------------------------------------------------------------------
@@ -151,8 +198,14 @@ Thread::Finish ()
     
     DEBUG('t', "Finishing thread \"%s\"\n", getName());
     
-    threadToBeDestroyed = currentThread;
-    Sleep();					// invokes SWITCH
+    // si se va a llamar a join, todavía no lo marco para ser destruido
+    if (joinFlag) {
+        scheduler->Finish(currentThread);
+    } else {
+        threadToBeDestroyed = currentThread;
+    }
+
+    Sleep(); // invokes SWITCH
     // not reached
 }
 
@@ -274,6 +327,19 @@ Thread::StackAllocate (VoidFunctionPtr func, void* arg)
     machineState[InitialArgState] = (HostMemoryAddress) arg;
     machineState[WhenDonePCState] = (HostMemoryAddress) ThreadFinish;
 }
+
+//----------------------------------------------------------------------
+// Thread::Join
+//	Join bloquea al llamante hasta que termine este hilo
+//----------------------------------------------------------------------
+
+void Thread::Join()
+{
+    ASSERT(this != currentThread);
+
+    scheduler->Join(this);
+}
+
 
 #ifdef USER_PROGRAM
 #include "machine.h"
