@@ -17,4 +17,11 @@ tp3/code/test/*
 !tp3/code/test/Makefile
 !tp3/code/test/Makefile.ori
 
+tp4/code/bin/coff2noff
+tp4/code/test/*
+!tp4/code/test/*.c
+!tp4/code/test/script
+!tp4/code/test/Makefile
+!tp4/code/test/Makefile.ori
+
 **/nachos
