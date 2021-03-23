@@ -34,6 +34,7 @@ SynchDisk   *synchDisk;
 
 #ifdef USER_PROGRAM	// requires either FILESYS or FILESYS_STUB
 Machine *machine;	// user program memory and registers
+SynchConsole *synchConsole;
 #endif
 
 #ifdef NETWORK
@@ -84,6 +85,7 @@ TimerInterruptHandler(void* dummy)
 void
 Initialize(int argc, char **argv)
 {
+
     int argCount;
     const char* debugArgs = "";
     bool randomYield = false;
@@ -178,6 +180,7 @@ Initialize(int argc, char **argv)
     
 #ifdef USER_PROGRAM
     machine = new Machine(debugUserProg);	// this must come first
+    synchConsole = new SynchConsole(NULL, NULL);
 #endif
 
 #ifdef FILESYS

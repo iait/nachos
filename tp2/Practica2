@@ -253,9 +253,11 @@ acceso a la lista a la vez.
     12. ¿En qué archivos está definida la función ''main''? ¿en qué archivo está definida la función ''main'' 
 del ejecutable ''nachos'' del directorio ''userprog''?
 
-La función ''main'' está definida en los varios archivos de la carpeta bin (coff2flat.c, coff2noff.c, disasm.c,
+La función ''main'' está definida en varios archivos de la carpeta bin (coff2flat.c, coff2noff.c, disasm.c,
 main.c, out.c), en los programas de usuario definidos en la carpeta test (halt.c, matmult.c, shell.c, sort.c) y 
 el main del ejecutable de nachos en threads/main.cc.
+
+Este último es el ''main'' que corre con el ejecutable ''nachos'' del directorio ''userprog''.
 
 
         #############################################################################################

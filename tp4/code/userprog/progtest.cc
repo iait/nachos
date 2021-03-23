@@ -13,35 +13,52 @@
 #include "console.h"
 #include "addrspace.h"
 #include "synch.h"
+#include "synchconsole.h"
+#include "syscall.h"
+
+//-----------------------------------------------------------------------
+// StartUserProgram
+//      Función que invocará el nuevo thread.
+//      Inicia la ejecución de un programa de usuario.
+//
+//-----------------------------------------------------------------------
+void
+StartUserProgram(void *arg)
+{
+    char *name = (char *) arg;
+    DEBUG('u', "Iniciando la ejecución del programa de usuario %s\n", name);
+
+    currentThread->space->InitRegisters();
+    currentThread->space->RestoreState();
+
+    machine->Run();
+    ASSERT(false);
+}
 
 //----------------------------------------------------------------------
 // StartProcess
 // 	Run a user program.  Open the executable, load it into
 //	memory, and jump to it.
 //----------------------------------------------------------------------
-
-void
+SpaceId
 StartProcess(const char *filename)
 {
     OpenFile *executable = fileSystem->Open(filename);
     AddrSpace *space;
 
     if (executable == NULL) {
-	printf("Unable to open file %s\n", filename);
-	return;
+        printf("Unable to open file %s\n", filename);
+        return -1; // TODO
     }
-    space = new AddrSpace(executable);    
-    currentThread->space = space;
+    space = new AddrSpace(executable);
+    Thread *thread = new Thread(filename, true);
+    thread->space = space;
 
-    delete executable;			// close file
+    delete executable;
 
-    space->InitRegisters();		// set the initial register values
-    space->RestoreState();		// load page table register
+    thread->Fork(StartUserProgram, (void *) filename);
 
-    machine->Run();			// jump to the user progam
-    ASSERT(false);			// machine->Run never returns;
-					// the address space exits
-					// by doing the syscall "exit"
+    return thread->getSpaceId();
 }
 
 // Data structures needed for the console test.  Threads making
@@ -64,7 +81,6 @@ static void WriteDone(void* arg) { writeDone->V(); }
 // 	Test the console by echoing characters typed at the input onto
 //	the output.  Stop when the user types a 'q'.
 //----------------------------------------------------------------------
-
 void 
 ConsoleTest (const char *in, const char *out)
 {
@@ -80,5 +96,26 @@ ConsoleTest (const char *in, const char *out)
 	console->PutChar(ch);	// echo it!
 	writeDone->P() ;        // wait for write to finish
 	if (ch == 'q') return;  // if q, quit
+    }
+}
+
+//----------------------------------------------------------------------
+// SynchConsoleTest
+//      Test the synch console by echoing characters typed at the input onto
+//      the output. Stop when the user types a 'q'.
+//----------------------------------------------------------------------
+void
+SynchConsoleTest(const char *in, const char *out)
+{
+    char ch;
+
+    SynchConsole *sc = new SynchConsole(in, out);
+    for (;;) {
+        ch = sc->GetChar();
+        sc->PutChar(ch);
+        if (ch == 'q') {
+            delete sc;
+            return;
+        }
     }
 }

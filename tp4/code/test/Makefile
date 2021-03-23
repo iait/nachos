@@ -35,7 +35,7 @@ CPP = /lib/cpp
 INCDIR =-I../userprog -I../threads
 CFLAGS = -G 0 -c $(INCDIR) -mips1
 
-all: halt shell matmult sort
+all: halt shell matmult sort exit create read console printA printB exec
 
 start.o: start.s ../userprog/syscall.h
 	$(CPP) $(CPPFLAGS) start.s > strt.s
@@ -47,6 +47,48 @@ halt.o: halt.c
 halt: halt.o start.o
 	$(LD) $(LDFLAGS) start.o halt.o -o halt.coff
 	../bin/coff2noff halt.coff halt
+	
+exit.o: exit.c
+	$(CC) $(CFLAGS) -c exit.c
+exit: exit.o start.o
+	$(LD) $(LDFLAGS) start.o exit.o -o exit.coff
+	../bin/coff2noff exit.coff exit
+	
+create.o: create.c
+	$(CC) $(CFLAGS) -c create.c
+create: create.o start.o
+	$(LD) $(LDFLAGS) start.o create.o -o create.coff
+	../bin/coff2noff create.coff create
+	
+read.o: read.c
+	$(CC) $(CFLAGS) -c read.c
+read: read.o start.o
+	$(LD) $(LDFLAGS) start.o read.o -o read.coff
+	../bin/coff2noff read.coff read
+
+console.o: console.c
+	$(CC) $(CFLAGS) -c console.c
+console: console.o start.o
+	$(LD) $(LDFLAGS) start.o console.o -o console.coff
+	../bin/coff2noff console.coff console
+
+printA.o: printA.c
+	$(CC) $(CFLAGS) -c printA.c
+printA: printA.o start.o
+	$(LD) $(LDFLAGS) start.o printA.o -o printA.coff
+	../bin/coff2noff printA.coff printA
+
+printB.o: printB.c
+	$(CC) $(CFLAGS) -c printB.c
+printB: printB.o start.o
+	$(LD) $(LDFLAGS) start.o printB.o -o printB.coff
+	../bin/coff2noff printB.coff printB
+
+exec.o: exec.c
+	$(CC) $(CFLAGS) -c exec.c
+exec: exec.o start.o
+	$(LD) $(LDFLAGS) start.o exec.o -o exec.coff
+	../bin/coff2noff exec.coff exec
 
 shell.o: shell.c
 	$(CC) $(CFLAGS) -c shell.c

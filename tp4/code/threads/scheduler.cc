@@ -34,9 +34,9 @@ Scheduler::Scheduler()
     }
     readyList = readyListP[5]; //Para mantener compatibilidad con el código original.
 
-    finishedThreads = new List<Thread*>;
-    lock = new Lock("join");
-    condition = new Condition("join", lock);
+    statusList = new List<int>;
+    lock = new Lock("status-lock");
+    cond = new Condition("status-cond", lock);
 } 
 
 //----------------------------------------------------------------------
@@ -50,9 +50,9 @@ Scheduler::~Scheduler()
         delete readyListP[i];
     }
 
-    delete finishedThreads;
+    delete statusList;
     delete lock;
-    delete condition;
+    delete cond;
 } 
 
 //----------------------------------------------------------------------
@@ -201,31 +201,34 @@ void Scheduler::Promote(Thread *thread)
 
 //------------------------------------------------------------------------
 // Scheduler::Finish
-//      Agrega el hilo a una lista de terminados esperando por join.
-//      Desbloquea a los hilos que ya llamaron join.
+//      Agrega el estado de finalización del hilo a la lista esperando por join.
+//      Desbloquea a los hilos que ya llamaron join, para que revisen si el
+//      que acaba de terminar era el que estaban esperando.
 //------------------------------------------------------------------------
-void Scheduler::Finish(Thread *thread)
+void Scheduler::Finish(SpaceId spaceId, int status)
 {
     lock->Acquire();
-    finishedThreads->Append(thread);
-    condition->Broadcast();
+    statusList->Append(spaceId, status);
+    cond->Broadcast();
     lock->Release();
 }
 
 //------------------------------------------------------------------------
 // Scheduler::Join
-//      Busca en la lista si el hilo thread ya terminó.
+//      Busca en la lista de estados de finalización si el hilo con identificador
+//      "spaceId" ya terminó.
 //      Si todavía no terminó, se bloquea este hilo (currentThread) a la espera
 //      de que termine.
-//      Una vez que el hilo terminó, lo destruye y continúa.
+//      Una vez que el hilo terminó, devuelve su estado de finalización.
 //------------------------------------------------------------------------
-void Scheduler::Join(Thread *thread)
+int Scheduler::Join(SpaceId spaceId)
 {
     lock->Acquire();
-    while (!finishedThreads->Remove(thread)) {
-        condition->Wait();
+    int status;
+    while (!statusList->Remove(spaceId, &status)) {
+        cond->Wait();
     }
     lock->Release();
-    delete thread;
+    return status;
 }
 

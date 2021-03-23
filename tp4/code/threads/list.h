@@ -45,10 +45,13 @@ class List {
     ~List();			// de-allocate the list
 
     void Prepend(Item item); 	// Put item at the beginning of the list
-    void Append(Item item); 	// Put item at the end of the list
-    Item Remove(); 	 	// Take item off the front of the list
 
+    void Append(int key, Item item);   // Pone un elemento con clave al final de la lista
+    void Append(Item item); 	// Put item at the end of the list
+
+    Item Remove(); 	 	// Take item off the front of the list
     bool Remove(Item item);     // Elimina el elemento de la lista si existe
+    bool Remove(int key, Item *item);  // Elimina el elemento por su clave
 
     void Apply(void (*func)(Item));	// Apply "func" to all elements in list 
 
@@ -120,23 +123,30 @@ List<Item>::~List()
 //      If the list is empty, then this will be the only element.
 //	Otherwise, put it at the end.
 //
-//	"item" is the thing to put on the list, it can be a pointer to 
-//		anything.
+//      "item" is the thing to put on the list, it can be a pointer to
+//              anything.
+//      "key" clave con la que se asocia al elemento, si no se proporciona
+//              se usa cero.
 //----------------------------------------------------------------------
+template <class Item>
+void
+List<Item>::Append(int key, Item item)
+{
+    ListNode *element = new ListNode(item, key);
 
+    if (IsEmpty()) {            // list is empty
+        first = element;
+        last = element;
+    } else {                    // else put it after last
+        last->next = element;
+        last = element;
+    }
+}
 template <class Item>
 void
 List<Item>::Append(Item item)
 {
-    ListNode *element = new ListNode(item, 0);
-
-    if (IsEmpty()) {		// list is empty
-	first = element;
-	last = element;
-    } else {			// else put it after last
-	last->next = element;
-	last = element;
-    }
+    Append(0, item);
 }
 
 //----------------------------------------------------------------------
@@ -290,6 +300,73 @@ List<Item>::SortedRemove(int *keyPtr)
     return thing;
 }
 
+//----------------------------------------------------------------------
+// List::Remove
+//      Elimina el elemento de la lista con clave "key" y lo asigna en
+//      "item". Retorna true si el elemento fue encontrado.
+//
+//      "key" clave del elemento a eliminar.
+//      "item" donde se devolverá el elemento eliminado, si se encuentra.
+//----------------------------------------------------------------------
+template <class Item>
+bool
+List<Item>::Remove(int key, Item *item)
+{
+    // si la lista está vacía el elemento no está
+    if (IsEmpty()) {
+        return false;
+    }
+
+    // si la lista tiene solo un elemento
+    if (first == last) {
+        if (first->key == key) {
+            *item = first->item;
+            delete first;
+            first = NULL;
+            last = NULL;
+            return true;
+        }
+        return false;
+    }
+
+    // si el item a buscar es el primero (la lista tiene más de un elemento)
+    ListNode *current = first;
+    if (first->key == key) {
+        *item = first->item;
+        first = first->next;
+        delete current;
+        return true;
+    }
+
+    // itera sobre la lista
+    ListNode *prev = current;
+    current = current->next;
+    while (current->key != key) {
+        if (current == last) {
+            return false; // llegó al final de la lista y no se encontró
+        }
+        prev = current;
+        current = current->next;
+    }
+    // se encontró el item en current
+    *item = current->item;
+    if (current == last) {
+        prev->next = NULL;
+        last = prev;
+    } else {
+        prev->next = current->next;
+    }
+    delete current;
+    return true;
+}
+
+//----------------------------------------------------------------------
+// List::Remove
+//      Elimina el elemento "item" de la lista.
+//      Retorna true si el elemento fue encontrado.
+//
+//      "item" elemento a eliminar.
+//----------------------------------------------------------------------
 template <class Item>
 bool
 List<Item>::Remove(Item item)

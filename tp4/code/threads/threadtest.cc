@@ -66,10 +66,11 @@ ThreadTest()
         thread->Fork(SimpleThread, (void *) name);
     }
 
+    SimpleThread((void*)"Hilo 0");
+
     for (int k = 1; k <= 10; k++) {
-        threads[k - 1]->Join();
+        scheduler->Join(threads[k - 1]->getSpaceId());
     }
     
-    SimpleThread((void*)"Hilo 0");
 }
 

@@ -79,7 +79,8 @@ USERPROG_H = ../userprog/addrspace.h\
 	../machine/console.h\
 	../machine/machine.h\
 	../machine/mipssim.h\
-	../machine/translate.h
+	../machine/translate.h\
+	../userprog/synchconsole.h
 
 USERPROG_C = ../userprog/addrspace.cc\
 	../userprog/bitmap.cc\
@@ -88,10 +89,11 @@ USERPROG_C = ../userprog/addrspace.cc\
 	../machine/console.cc\
 	../machine/machine.cc\
 	../machine/mipssim.cc\
-	../machine/translate.cc
+	../machine/translate.cc\
+	../userprog/synchconsole.cc
 
 USERPROG_O = addrspace.o bitmap.o exception.o progtest.o console.o machine.o \
-	mipssim.o translate.o
+	mipssim.o translate.o synchconsole.o
 
 VM_H = 
 VM_C = 
@@ -103,6 +105,7 @@ FILESYS_H =../filesys/directory.h \
 	../filesys/openfile.h\
 	../filesys/synchdisk.h\
 	../machine/disk.h
+
 FILESYS_C =../filesys/directory.cc\
 	../filesys/filehdr.cc\
 	../filesys/filesys.cc\
@@ -110,6 +113,7 @@ FILESYS_C =../filesys/directory.cc\
 	../filesys/openfile.cc\
 	../filesys/synchdisk.cc\
 	../machine/disk.cc
+
 FILESYS_O =directory.o filehdr.o filesys.o fstest.o openfile.o synchdisk.o\
 	disk.o
 

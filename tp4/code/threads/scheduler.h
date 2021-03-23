@@ -32,19 +32,19 @@ class Scheduler {
     // agregado para multicolas de prioridad
     void Promote(Thread *thread);       // Promueve a la prioridad del currentThread
 
-    // agregado para join de hilos
-    void Finish(Thread *thread);
-    void Join(Thread *thread);
+    // agregado para multiprogramación
+    void Finish(SpaceId spaceId, int exitStatus); // Agrega el hilo a la lista de terminados con su estado
+    int Join(SpaceId spaceId);                    // Espera a que el hilo termine y devuelve su estado
 
   private:
     List<Thread*> *readyList;  		// queue of threads that are ready to run,
 					// but not running
     List<Thread*> *readyListP[11];	// Colas de prioridad
 
-    // agregado para implementación del join
-    List<Thread*> *finishedThreads;     // hilos que fueron terminados y esperan por join
+    // agregado para multiprogramación
+    List<int> *statusList;              // lista de los estados de salida de los hilos
     Lock *lock;
-    Condition *condition;
+    Condition *cond;
 };
 
 #endif // SCHEDULER_H

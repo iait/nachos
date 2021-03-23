@@ -5,7 +5,7 @@
 //	Represented as an array of unsigned integers, on which we do
 //	modulo arithmetic to find the bit we are interested in.
 //
-//	The bitmap can be parameterized with with the number of bits being 
+//	The bitmap can be parameterized with the number of bits being
 //	managed.
 //
 // Copyright (c) 1992-1993 The Regents of the University of California.

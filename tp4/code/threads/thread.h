@@ -39,6 +39,7 @@
 
 #include "copyright.h"
 #include "utility.h"
+#include "syscall.h"
 
 #ifdef USER_PROGRAM
 #include "machine.h"
@@ -82,6 +83,8 @@ class Thread {
     int priority; // Va a guardar la prioridad del thread actual
     int originalPriority; // Va a guardad la prioridad original con la que se creo el thread
 
+    SpaceId spaceId; // Identificador del hilo
+
   public:
     Thread(const char* debugName);	// initialize a Thread 
     Thread(const char* debugName, bool flag);	// Inicializa un Thread con un flag que
@@ -100,21 +103,30 @@ class Thread {
     void Sleep();  				// Put the thread to sleep and 
 						// relinquish the processor
     void Finish();  				// The thread is done executing
-    
+    void Finish(int exitStatus);                // finaliza el proceso e informa de su estado
+
     void CheckOverflow();   			// Check if thread has 
 						// overflowed its stack
-    void setStatus(ThreadStatus st) { status = st; }
+    void setStatus(ThreadStatus st) { status = st; } //TODO hacer público
     ThreadStatus getStatus() { return status; }
 
     // agregado para multicolas de prioridad
-    int getPriority() { return priority; }
+    int getPriority() { return priority; } //TODO hacer público
     void setPriority(int prio) { priority = prio; }
     int getOriginalPriority() { return originalPriority; }
+
+    SpaceId getSpaceId() { return spaceId; }
 
     void Join();            // Bloquea al llamante hasta que termine este hilo
 
     const char* getName() { return name; }
     void Print() { printf("%s, ", name); }
+
+#ifdef USER_PROGRAM
+    OpenFileId AgregarDescriptor(OpenFile *file);   // Agrega un archivo a la tabla y retorna su file descriptor
+    OpenFile *GetDescriptor(OpenFileId fileId);     // Obtiene un archivo mediante su file descriptor
+    void BorrarDescriptor(OpenFileId fileId);       // Elimina un archivo de la tabla
+#endif
 
   private:
     // some of the private data for this class is listed above
@@ -141,6 +153,9 @@ class Thread {
     void RestoreUserState();		// restore user-level register state
 
     AddrSpace *space;			// User code this thread is running.
+
+    OpenFile **descriptores;            // tabla de file descriptors
+    int sizeTable;                      // tamaño actual de la tabla
 #endif
 };
 

@@ -15,8 +15,12 @@
 
 #include "copyright.h"
 #include "filesys.h"
+#include "syscall.h"
+#include "bitmap.h"
 
 #define UserStackSize		1024 	// increase this as necessary!
+
+extern BitMap *memMap;
 
 class AddrSpace {
   public:
@@ -32,6 +36,11 @@ class AddrSpace {
     void RestoreState();		// info on a context switch 
 
   private:
+    // Agregado. Copia desde el archivo al address space.
+    void CopyToAddrSpace(OpenFile *file, int posInFile, int bytesToCopy, int virtAddr);
+
+    void DumpPageTable(); // para debug
+
     TranslationEntry *pageTable;	// Assume linear page table translation
 					// for now!
     unsigned int numPages;		// Number of pages in the virtual 

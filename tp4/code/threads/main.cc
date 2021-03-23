@@ -52,7 +52,7 @@
 
 #include "utility.h"
 #include "system.h"
-
+#include "syscall.h"
 
 // External functions used by this file
 
@@ -60,8 +60,10 @@ void ThreadTest();
 void Copy(const char *unixFile, const char *nachosFile);
 void Print(const char *file);
 void PerformanceTest(void);
-void StartProcess(const char *file);
+SpaceId StartProcess(const char *file);
+void StartOtherProcess(const char *file);
 void ConsoleTest(const char *in, const char *out);
+void SynchConsoleTest(const char *in, const char *out);
 void MailTest(int networkID);
 
 //----------------------------------------------------------------------
@@ -84,6 +86,11 @@ main(int argc, char **argv)
     int argCount;			// the number of arguments 
 					// for a particular command
 
+#ifdef USER_PROGRAM
+    int threadsCount;
+    SpaceId *threadIds;  // identificadores de los threads de programas de usuario
+#endif
+
     DEBUG('t', "Entering main");
     (void) Initialize(argc, argv);
     
@@ -98,8 +105,15 @@ main(int argc, char **argv)
 #ifdef USER_PROGRAM
         if (!strcmp(*argv, "-x")) {        	// run a user program
 	    ASSERT(argc > 1);
-            StartProcess(*(argv + 1));
-            argCount = 2;
+	    int i;
+	    for (i = 1; i < argc && **(argv + i) != '-'; i++);
+	    threadsCount = i - 1;
+	    DEBUG('u', "Se ejecutarán %d programas de usuario\n", threadsCount);
+	    threadIds = new SpaceId[threadsCount];
+            for (int j = 0; j < threadsCount; j++) {
+                threadIds[j] = StartProcess(*(argv + j + 1));
+            }
+            argCount = i;
         } else if (!strcmp(*argv, "-c")) {      // test the console
 	    if (argc == 1)
 	        ConsoleTest(NULL, NULL);
@@ -111,7 +125,19 @@ main(int argc, char **argv)
 	    interrupt->Halt();		// once we start the console, then 
 					// Nachos will loop forever waiting 
 					// for console input
-	}
+
+	} else if (!strcmp(*argv, "-sc")) {      // test the synch console
+            if (argc == 1) {
+                SynchConsoleTest(NULL, NULL);
+            } else {
+                ASSERT(argc > 2);
+                SynchConsoleTest(*(argv + 1), *(argv + 2));
+                argCount = 3;
+            }
+            interrupt->Halt();          // once we start the console, then
+                                        // Nachos will loop forever waiting
+                                        // for console input
+        }
 #endif // USER_PROGRAM
 #ifdef FILESYS
 	if (!strcmp(*argv, "-cp")) { 		// copy from UNIX to Nachos
@@ -145,6 +171,16 @@ main(int argc, char **argv)
         }
 #endif // NETWORK
     }
+
+#ifdef USER_PROGRAM
+    // hace un join de los programas de usuario lanzados y luego hace un Halt
+    for (int i = 0; i < threadsCount; i++) {
+        scheduler->Join(threadIds[i]);
+    }
+    delete [] threadIds;
+    printf("\nTerminaron todos los programas de usuario.\n");
+    interrupt->Halt();
+#endif
 
     currentThread->Finish();	// NOTE: if the procedure "main" 
 				// returns, then the program "nachos"

@@ -23,6 +23,9 @@
 // for detecting stack overflows
 const unsigned STACK_FENCEPOST = 0xdeadbeef;	
 
+// contador para asignar los identificadores de hilos spaceId
+SpaceId nextSpaceId = 0;
+
 //----------------------------------------------------------------------
 // Thread::Thread
 // 	Initialize a thread control block, so that we can then call
@@ -33,6 +36,7 @@ const unsigned STACK_FENCEPOST = 0xdeadbeef;
 
 Thread::Thread(const char* threadName)
 {
+    spaceId = nextSpaceId++;
     name = threadName;
     stackTop = NULL;
     stack = NULL;
@@ -56,6 +60,7 @@ Thread::Thread(const char* threadName)
 
 Thread::Thread(const char* threadName, bool flag)
 {
+    spaceId = nextSpaceId++;
     name = threadName;
     stackTop = NULL;
     stack = NULL;
@@ -78,6 +83,7 @@ Thread::Thread(const char* threadName, bool flag)
 
 Thread::Thread(const char* threadName, int prio)
 {
+    spaceId = nextSpaceId++;
     name = threadName;
     stackTop = NULL;
     stack = NULL;
@@ -191,21 +197,25 @@ Thread::CheckOverflow()
 
 //
 void
-Thread::Finish ()
+Thread::Finish()
+{
+    Finish(0);
+}
+void
+Thread::Finish(int exitStatus)
 {
     interrupt->SetLevel(IntOff);		
     ASSERT(this == currentThread);
     
     DEBUG('t', "Finishing thread \"%s\"\n", getName());
     
-    // si se va a llamar a join, todavía no lo marco para ser destruido
+    // si se puede llamar a join guardo su estado de finalización
     if (joinFlag) {
-        scheduler->Finish(currentThread);
-    } else {
-        threadToBeDestroyed = currentThread;
+        scheduler->Finish(currentThread->getSpaceId(), exitStatus);
     }
 
-    Sleep(); // invokes SWITCH
+    threadToBeDestroyed = currentThread;
+    Sleep();                                    // invokes SWITCH
     // not reached
 }
 
@@ -328,19 +338,6 @@ Thread::StackAllocate (VoidFunctionPtr func, void* arg)
     machineState[WhenDonePCState] = (HostMemoryAddress) ThreadFinish;
 }
 
-//----------------------------------------------------------------------
-// Thread::Join
-//	Join bloquea al llamante hasta que termine este hilo
-//----------------------------------------------------------------------
-
-void Thread::Join()
-{
-    ASSERT(this != currentThread);
-
-    scheduler->Join(this);
-}
-
-
 #ifdef USER_PROGRAM
 #include "machine.h"
 
@@ -375,4 +372,72 @@ Thread::RestoreUserState()
     for (int i = 0; i < NumTotalRegs; i++)
 	machine->WriteRegister(i, userRegisters[i]);
 }
+
+//----------------------------------------------------------------------
+// Thread::AgregarDescriptor
+//
+//      Agrega el OpenFile de archivo abierto a la tabla de descriptores
+//      del proseso.
+//
+//----------------------------------------------------------------------
+OpenFileId
+Thread::AgregarDescriptor(OpenFile *file)
+{
+        int i;
+        int fileId;
+        for (i = 0; i < sizeTable; i++) {
+            if (descriptores[i] == NULL) {
+                descriptores[i] = file;
+                fileId = i + 2; // ya que 0 y 1 están reservados
+                DEBUG('f', "%s agrega el descriptor de archivos número %d\n", currentThread->getName(), fileId);
+                return fileId;
+            }
+        }
+        descriptores = (OpenFile **) realloc(descriptores, (++sizeTable) * sizeof(OpenFile *));
+        descriptores[i] = file;
+        fileId = i + 2; // ya que 0 y 1 están reservados
+        DEBUG('f',"%s agrega el descriptor de archivos número %d\n", currentThread->getName(), fileId);
+        return fileId;
+}
+
+//----------------------------------------------------------------------
+// Thread::GetDescriptor
+//
+//      Obtiene el archivo abierto por este proceso a partir de su descriptor.
+//
+//----------------------------------------------------------------------
+OpenFile *
+Thread::GetDescriptor(OpenFileId fileId)
+{
+        DEBUG('f', "%s pide el archivo número %d\n", currentThread->getName(), fileId);
+        int i = fileId - 2; // ya que 0 y 1 están reservados
+        ASSERT(i >= 0 && i < sizeTable);
+        return descriptores[i];
+}
+
+//----------------------------------------------------------------------
+// Thread::BorrarDescriptor
+//
+//      Elimina un archivo de la tabla de desciptores.
+//
+//----------------------------------------------------------------------
+void
+Thread::BorrarDescriptor(OpenFileId fileId)
+{
+        DEBUG('f',"%s cierra el descriptor de archivos número %d\n", currentThread->getName(), fileId);
+        int i = fileId - 2; // ya que 0 y 1 están reservados
+        ASSERT(i >= 0 && i < sizeTable);
+        delete descriptores[i];
+        descriptores[i] = NULL;
+
+        if (i == (sizeTable - 1)) {
+            int j = i;
+            while (j >= 0 && descriptores[j] == NULL) {
+                j--;
+            }
+            sizeTable = j + 1;
+            descriptores = (OpenFile **) realloc(descriptores, sizeTable * sizeof(OpenFile *));
+        }
+}
+
 #endif
