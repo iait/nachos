@@ -125,7 +125,7 @@ class Thread {
 #ifdef USER_PROGRAM
     OpenFileId AgregarDescriptor(OpenFile *file);   // Agrega un archivo a la tabla y retorna su file descriptor
     OpenFile *GetDescriptor(OpenFileId fileId);     // Obtiene un archivo mediante su file descriptor
-    void BorrarDescriptor(OpenFileId fileId);       // Elimina un archivo de la tabla
+    bool BorrarDescriptor(OpenFileId fileId);       // Elimina un archivo de la tabla
 #endif
 
   private:

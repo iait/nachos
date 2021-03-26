@@ -411,7 +411,9 @@ Thread::GetDescriptor(OpenFileId fileId)
 {
         DEBUG('f', "%s pide el archivo número %d\n", currentThread->getName(), fileId);
         int i = fileId - 2; // ya que 0 y 1 están reservados
-        ASSERT(i >= 0 && i < sizeTable);
+        if (i < 0 || i >= sizeTable) {
+            return NULL;
+        }
         return descriptores[i];
 }
 
@@ -421,12 +423,14 @@ Thread::GetDescriptor(OpenFileId fileId)
 //      Elimina un archivo de la tabla de desciptores.
 //
 //----------------------------------------------------------------------
-void
+bool
 Thread::BorrarDescriptor(OpenFileId fileId)
 {
         DEBUG('f',"%s cierra el descriptor de archivos número %d\n", currentThread->getName(), fileId);
         int i = fileId - 2; // ya que 0 y 1 están reservados
-        ASSERT(i >= 0 && i < sizeTable);
+        if (i < 0 || i >= sizeTable) {
+            return false;
+        }
         delete descriptores[i];
         descriptores[i] = NULL;
 
@@ -438,6 +442,7 @@ Thread::BorrarDescriptor(OpenFileId fileId)
             sizeTable = j + 1;
             descriptores = (OpenFile **) realloc(descriptores, sizeTable * sizeof(OpenFile *));
         }
+        return true;
 }
 
 #endif

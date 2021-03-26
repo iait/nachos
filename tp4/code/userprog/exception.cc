@@ -98,9 +98,15 @@ ExceptionHandler(ExceptionType which)
             case SC_Create:
             {
                 DEBUG('u', "Programa de usuario hace llamada a Create.\n");
-                char *name = ReadStringFromMem(machine->registers[4]);
+                int nameVirtAddr = machine->ReadRegister(4);
+                char *name = ReadStringFromMem(nameVirtAddr);
                 bool ret = fileSystem->Create(name, 0);
-                ASSERT(ret);
+                if (!ret) {
+                    printf("No se pudo crear el archivo %s\n", name);
+                    free(name);
+                    currentThread->Finish(-1);
+                    ASSERT(false);
+                }
                 DEBUG('u', "Se crea el archivo %s.\n", name);
                 free(name);
                 break;
@@ -108,11 +114,17 @@ ExceptionHandler(ExceptionType which)
             case SC_Open:
             {
                 DEBUG('u', "Programa de usuario hace llamada a Open.\n");
-                char *name = ReadStringFromMem(machine->registers[4]);
+                int nameVirtAddr = machine->ReadRegister(4);
+                char *name = ReadStringFromMem(nameVirtAddr);
                 OpenFile *file = fileSystem->Open(name);
-                ASSERT(file != NULL);
+                if (file == NULL) {
+                    printf("No se pudo abrir el archivo %s\n", name);
+                    free(name);
+                    currentThread->Finish(-1);
+                    ASSERT(false);
+                }
                 OpenFileId fileId = currentThread->AgregarDescriptor(file);
-                machine->registers[2] = fileId;
+                machine->WriteRegister(2, fileId);
                 DEBUG('u', "Se abre el archivo %s con descriptor %d\n", name, fileId);
                 free(name);
                 break;
@@ -120,23 +132,28 @@ ExceptionHandler(ExceptionType which)
             case SC_Read:
             {
                 DEBUG('u', "Programa de usuario hace llamada a Read.\n");
-                int addr = machine->registers[4];
-                int numBytes = machine->registers[5];
-                OpenFileId fileId = machine->registers[6];
+                int addr = machine->ReadRegister(4);
+                int numBytes = machine->ReadRegister(5);
+                OpenFileId fileId = machine->ReadRegister(6);
                 char buffer[numBytes + 1];
                 int read;
                 if (fileId == 0) { // stdin
                     read = ReadFromStdIn(numBytes, buffer);
                 } else if (fileId == 1) { // stdout
-                    DEBUG('u', "Se intenta leer de la salida estándar.\n");
+                    printf("Se intenta leer de la salida estándar.\n");
+                    currentThread->Finish(-1);
                     ASSERT(false);
                 } else {
                     OpenFile *file = currentThread->GetDescriptor(fileId);
-                    ASSERT(file != NULL);
+                    if (file == NULL) {
+                        printf("No se encuentra el archivo con descriptor %d\n", fileId);
+                        currentThread->Finish(-1);
+                        ASSERT(false);
+                    }
                     read = file->Read(buffer, numBytes);
                 }
                 WriteStringToMem(addr, read, buffer);
-                machine->registers[2] = read;
+                machine->WriteRegister(2, read);
                 buffer[read] = '\0'; // para debug
                 DEBUG('u', "Se lee <%s> del archivo con descriptor %d\n", buffer, fileId);
                 //Dump();
@@ -145,20 +162,24 @@ ExceptionHandler(ExceptionType which)
             case SC_Write:
             {
                 DEBUG('u', "Programa de usuario hace llamada a Write.\n");
-                int addr = machine->registers[4];
-                int numBytes = machine->registers[5];
-                OpenFileId fileId = machine->registers[6];
+                int addr = machine->ReadRegister(4);
+                int numBytes = machine->ReadRegister(5);
+                OpenFileId fileId = machine->ReadRegister(6);
                 char *content = ReadStringFromMem(addr, numBytes);
                 if (fileId == 0) { // stdin
-                    DEBUG('u', "Se intenta escribir en la entrada estándar.\n");
+                    printf("Se intenta escribir en la entrada estándar.\n");
+                    currentThread->Finish(-1);
                     ASSERT(false);
                 } else if (fileId == 1) { // stdout
                     WriteToStdOut(numBytes, content);
                 } else {
                     OpenFile *file = currentThread->GetDescriptor(fileId);
-                    ASSERT(file != NULL);
+                    if (file == NULL) {
+                        printf("No se encuentra el archivo con descriptor %d\n", fileId);
+                        currentThread->Finish(-1);
+                        ASSERT(false);
+                    }
                     int ret = file->Write(content, numBytes);
-                    ASSERT(ret == numBytes);
                 }
                 DEBUG('u', "Se escribe <%s> en el archivo con descriptor %d\n", content, fileId);
                 break;
@@ -166,9 +187,14 @@ ExceptionHandler(ExceptionType which)
             case SC_Close:
             {
                 DEBUG('u', "Programa de usuario hace llamada a Close.\n");
-                OpenFileId fileId = machine->registers[4];
+                OpenFileId fileId = machine->ReadRegister(4);
                 ASSERT(fileId > 1);
-                currentThread->BorrarDescriptor(fileId);
+                bool ret = currentThread->BorrarDescriptor(fileId);
+                if (!ret) {
+                    printf("No se encuentra el archivo con descriptor %d\n", fileId);
+                    currentThread->Finish(-1);
+                    ASSERT(false);
+                }
                 DEBUG('u', "Se cierra el archivo con descriptor %d\n", fileId);
                 break;
             }
