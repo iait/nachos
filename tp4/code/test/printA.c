@@ -1,17 +1,15 @@
 /* printA.c
- *
+ *      Imprime 10 letras A en la salida estándar.
  */
 
 #include "syscall.h"
 
 int main()
 {
-    char content[1];
-    content[0] = 'A';
 
     int i;
     for (i = 0; i < 10; i++) {
-        Write(content, 1, 1);
+        Write("A", 1, ConsoleOutput);
     }
 
     Exit(1);

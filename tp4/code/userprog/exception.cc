@@ -179,7 +179,7 @@ ExceptionHandler(ExceptionType which)
                         currentThread->Finish(-1);
                         ASSERT(false);
                     }
-                    int ret = file->Write(content, numBytes);
+                    file->Write(content, numBytes);
                 }
                 DEBUG('u', "Se escribe <%s> en el archivo con descriptor %d\n", content, fileId);
                 break;

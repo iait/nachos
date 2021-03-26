@@ -13,12 +13,10 @@ int main()
 
     // lee de la entrada estándar
     char content[5];
-    int read = Read(content, 5, 0);
+    int read = Read(content, 5, ConsoleInput);
 
     // escribe en la salida estándar
-    Write(content, 5, 1);
-
-
+    Write(content, 5, ConsoleOutput);
 
     return 0;
 }
