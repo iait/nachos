@@ -23,6 +23,7 @@
 #include "copyright.h"
 #include "interrupt.h"
 #include "system.h"
+#include "unistd.h"
 
 // String definitions for debugging messages
 
@@ -265,6 +266,7 @@ void
 Interrupt::Schedule(VoidFunctionPtr handler, void* arg, int fromNow, IntType type)
 {
     int when = stats->totalTicks + fromNow;
+    ASSERT(when > 0); // agregado para evitar overflow
     PendingInterrupt *toOccur = new PendingInterrupt(handler, arg, when, type);
 
     DEBUG('i', "Scheduling interrupt handler the %s at time = %d\n", 
@@ -304,7 +306,9 @@ Interrupt::CheckIfDue(bool advanceClock)
 	return false;			
 
     if (advanceClock && when > stats->totalTicks) {	// advance the clock
-	stats->idleTicks += (when - stats->totalTicks);
+        unsigned int diffTicks = when - stats->totalTicks;
+        usleep(diffTicks * usecondPerTick);
+	stats->idleTicks += diffTicks;
 	stats->totalTicks = when;
     } else if (when > stats->totalTicks) {	// not time yet, put it back
 	pending->SortedInsert(toOccur, when);

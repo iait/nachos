@@ -57,4 +57,8 @@ const int ConsoleTime 	= 100;		// time to read or write one character
 const int NetworkTime 	= 100;   	// time to send or receive one packet
 const int TimerTicks 	= 100;    	// (average) time between timer interrupts
 
+const int usecondPerTick = 10;   // un tick equivale a 10 micro segundos
+                                 // cuando no hay nada para ejecutar se duerme hasta la
+                                 // próxima interrupción usando esta relación de tiempo
+
 #endif // STATS_H
