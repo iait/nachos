@@ -15,6 +15,7 @@
 #include "synch.h"
 #include "synchconsole.h"
 #include "syscall.h"
+#include "string.h"
 
 //-----------------------------------------------------------------------
 // StartUserProgram
@@ -25,11 +26,53 @@
 void
 StartUserProgram(void *arg)
 {
-    char *name = (char *) arg;
-    DEBUG('u', "Iniciando la ejecución del programa de usuario %s\n", name);
+    char *args = (char *) arg;
+    DEBUG('u', "Iniciando la ejecución del programa de usuario <%s>\n", args);
 
     currentThread->space->InitRegisters();
     currentThread->space->RestoreState();
+
+    int i, j;
+
+    // calcula la cantidad de argumentos y su longitud
+    int argc = 1;
+    for (i = 0; args[i] != '\0'; i++) {
+        if (args[i] == ' ') {
+            argc++;
+        }
+    }
+    int len = i + 1;
+    int align = divRoundUp(len, 4) * 4;
+
+    // base del stack (límite del address space)
+    int base = currentThread->space->getSize();
+
+    // copia los argumentos en el fondo del stack
+    int value;
+    bool newArg = true;
+    for (i = 0, j = 0; i < len; i++) {
+        int addr = base - align + i;
+        if (newArg) {
+            machine->WriteMem(base - align - (argc - j) * 4, 4, addr);
+            j++;
+            newArg = false;
+        }
+        if (args[i] == ' ') {
+            value = '\0';
+            newArg = true;
+        } else {
+            value = args[i];
+        }
+        machine->WriteMem(addr, 1, value);
+    }
+
+    // inicializa el stack pointer y pasa en r4, r5 el argc, argv respectivamente
+    int sp = base - align - argc * 4 - 16;
+    machine->WriteRegister(StackReg, sp);
+    machine->WriteRegister(4, argc);
+    machine->WriteRegister(5, base - align - argc * 4);
+
+    //machine->DumpMem(sp, base);
 
     machine->Run();
     ASSERT(false);

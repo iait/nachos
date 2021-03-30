@@ -33,7 +33,9 @@ class AddrSpace {
 					// before jumping to user code
 
     void SaveState();			// Save/restore address space-specific
-    void RestoreState();		// info on a context switch 
+    void RestoreState();		// info on a context switch
+
+    int getSize() { return numPages * PageSize; }  // retorna el tamaño del address space
 
   private:
     // Agregado. Copia desde el archivo al address space.

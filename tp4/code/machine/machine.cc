@@ -153,6 +153,24 @@ void Machine::Debugger()
     }
     delete [] buf;
 }
+
+//----------------------------------------------------------------------
+// Machine::DumpMem
+// 	Programa para debug que imprime el contenido de una porción de la 
+//	memoria virtual.
+//----------------------------------------------------------------------
+
+void
+Machine::DumpMem(int from, int to)
+{
+    for (int i = from; i < to; i++) {
+        int value;
+        bool ret = machine->ReadMem(i, 1, &value);
+        unsigned char c = (unsigned char) value;
+        ASSERT(ret)
+        printf("%d: 0x%02x %c\n", i, c, c);
+    }
+}
  
 //----------------------------------------------------------------------
 // Machine::DumpState

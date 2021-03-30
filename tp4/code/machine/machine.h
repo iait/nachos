@@ -145,6 +145,7 @@ class Machine {
 
     void Debugger();		// invoke the user program debugger
     void DumpState();		// print the user CPU and memory state 
+    void DumpMem(int from, int to); // para debug, imprime el contenido de la memoria
 
 
 // Data structures -- all of these are accessible to Nachos kernel code.

@@ -35,7 +35,6 @@ char *ReadStringFromMem(int addr, int numBytes);
 void WriteStringToMem(int addr, int numBytes, char *buffer);
 int ReadFromStdIn(int numBytes, char *buffer);
 void WriteToStdOut(int numBytes, char *buffer);
-void Dump();
 
 //----------------------------------------------------------------------
 // ExceptionHandler
@@ -67,9 +66,11 @@ ExceptionHandler(ExceptionType which)
     if (which == SyscallException) {
         switch (type) {
             case SC_Halt:
+            {
                 DEBUG('a', "Shutdown, initiated by user program.\n");
                 interrupt->Halt();
                 break;
+            }
             case SC_Exit:
             {
                 DEBUG('u', "Programa de usuario hace llamada a Exit.\n");
@@ -156,7 +157,6 @@ ExceptionHandler(ExceptionType which)
                 machine->WriteRegister(2, read);
                 buffer[read] = '\0'; // para debug
                 DEBUG('u', "Se lee <%s> del archivo con descriptor %d\n", buffer, fileId);
-                //Dump();
                 break;
             }
             case SC_Write:
@@ -210,18 +210,6 @@ ExceptionHandler(ExceptionType which)
 	printf("Unexpected user mode exception %d %d\n", which, type);
 	ASSERT(false);
     }
-}
-
-//-------------------------------------------------------------
-// Dump
-//
-//      Para debug.
-//-------------------------------------------------------------
-void Dump()
-{
-        for (int i = 0; i < MemorySize; i++) {
-                printf("%d: %c\n", i, machine->mainMemory[i]);
-        }
 }
 
 //-------------------------------------------------------------
