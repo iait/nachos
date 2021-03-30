@@ -26,7 +26,7 @@
 void
 StartUserProgram(void *arg)
 {
-    char *args = (char *) arg;
+    const char *args = (const char *) arg;
     DEBUG('u', "Iniciando la ejecución del programa de usuario <%s>\n", args);
 
     currentThread->space->InitRegisters();
@@ -84,8 +84,17 @@ StartUserProgram(void *arg)
 //	memory, and jump to it.
 //----------------------------------------------------------------------
 SpaceId
-StartProcess(const char *filename)
+StartProcess(const char *program)
 {
+    int i;
+    for (i = 0; program[i] != ' ' && program[i] != '\0'; i++);
+    int len = i + 1;
+    char filename[len];
+    for (i = 0; i < len - 1; i++) {
+        filename[i] = program[i];
+    }
+    filename[i] = '\0';
+
     OpenFile *executable = fileSystem->Open(filename);
     AddrSpace *space;
 
@@ -101,7 +110,7 @@ StartProcess(const char *filename)
 
     delete executable;
 
-    thread->Fork(StartUserProgram, (void *) filename);
+    thread->Fork(StartUserProgram, (void *) program);
 
     return thread->getSpaceId();
 }

@@ -18,5 +18,5 @@ int main()
     // escribe en la salida estándar
     Write(content, 5, ConsoleOutput);
 
-    return 0;
+    Exit(0);
 }

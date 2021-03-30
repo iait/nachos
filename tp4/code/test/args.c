@@ -37,4 +37,6 @@ main(int argc, char *argv[])
         PrintString(argv[i]);
     }
     PrintChar('\n');
+
+    Exit(0);
 }

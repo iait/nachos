@@ -1,11 +1,11 @@
 /* echo.c
- * TODO
+ *      Imprime una línea de texto en consola.
  */
 
 #include "syscall.h"
 
 int
-StringLength(const char *s)
+StringLength(char *s)
 {
     int i;
     for (i = 0; s[i] != '\0'; i++);
@@ -13,7 +13,7 @@ StringLength(const char *s)
 }
 
 void
-PrintString(const char *s)
+PrintString(char *s)
 {
     int len = StringLength(s);
     Write(s, len, ConsoleOutput);
@@ -29,11 +29,13 @@ int
 main(int argc, char *argv[])
 {
     int i;
-    for (i = 0; i < argc; i++) {
+    for (i = 1; i < argc; i++) {
         if (i != 0) {
             PrintChar(' ');
         }
         PrintString(argv[i]);
     }
     PrintChar('\n');
+
+    Exit(0);
 }
