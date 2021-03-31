@@ -307,7 +307,7 @@ Interrupt::CheckIfDue(bool advanceClock)
 
     if (advanceClock && when > stats->totalTicks) {	// advance the clock
         unsigned int diffTicks = when - stats->totalTicks;
-        usleep(diffTicks * usecondPerTick);
+        usleep(diffTicks * usecondPerTick); // espera antes de avanzar el reloj
 	stats->idleTicks += diffTicks;
 	stats->totalTicks = when;
     } else if (when > stats->totalTicks) {	// not time yet, put it back

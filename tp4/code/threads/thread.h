@@ -107,11 +107,11 @@ class Thread {
 
     void CheckOverflow();   			// Check if thread has 
 						// overflowed its stack
-    void setStatus(ThreadStatus st) { status = st; } //TODO hacer público
+    void setStatus(ThreadStatus st) { status = st; }
     ThreadStatus getStatus() { return status; }
 
     // agregado para multicolas de prioridad
-    int getPriority() { return priority; } //TODO hacer público
+    int getPriority() { return priority; }
     void setPriority(int prio) { priority = prio; }
     int getOriginalPriority() { return originalPriority; }
 
