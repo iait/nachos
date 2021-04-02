@@ -63,8 +63,6 @@ Machine::Machine(bool debug)
       	mainMemory[i] = 0;
 #ifdef USE_TLB
     tlb = new TranslationEntry[TLBSize];
-    for (i = 0; i < TLBSize; i++)
-	tlb[i].valid = false;
     pageTable = NULL;
 #else	// use linear page table
     tlb = NULL;
@@ -83,8 +81,24 @@ Machine::Machine(bool debug)
 Machine::~Machine()
 {
     delete [] mainMemory;
-    if (tlb != NULL)
+    if (tlb != NULL) {
         delete [] tlb;
+    }
+}
+
+//----------------------------------------------------------------------
+// Machine::InitializeTlb
+// 	Marca como inválida cada entrada de la TLB.
+//      Para ser usada en los cambios de contexto.
+//----------------------------------------------------------------------
+
+void
+Machine::InitializeTlb()
+{
+    for (int i = 0; i < TLBSize; i++) {
+        tlb[i].valid = false;
+    }
+    tlbIndex = 0;
 }
 
 //----------------------------------------------------------------------
@@ -102,12 +116,12 @@ Machine::RaiseException(ExceptionType which, int badVAddr)
 {
     DEBUG('m', "Exception: %s\n", exceptionNames[which]);
     
-//  ASSERT(interrupt->getStatus() == UserMode);
     registers[BadVAddrReg] = badVAddr;
     DelayedLoad(0, 0);			// finish anything in progress
+    MachineStatus oldStatus = interrupt->getStatus();
     interrupt->setStatus(SystemMode);
     ExceptionHandler(which);		// interrupts are enabled at this point
-    interrupt->setStatus(UserMode);
+    interrupt->setStatus(oldStatus);
 }
 
 //----------------------------------------------------------------------

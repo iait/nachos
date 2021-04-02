@@ -147,6 +147,9 @@ class Machine {
     void DumpState();		// print the user CPU and memory state 
     void DumpMem(int from, int to); // para debug, imprime el contenido de la memoria
 
+    void InitializeTlb();       // marca como no válidas todas las entradas de la TLB
+                                // para ser usado en un cambio de contexto
+
 
 // Data structures -- all of these are accessible to Nachos kernel code.
 // "public" for convenience.
@@ -179,6 +182,7 @@ class Machine {
 
     TranslationEntry *tlb;		// this pointer should be considered 
 					// "read-only" to Nachos kernel code
+    int tlbIndex;                       // próximo lugar donde insertar entrada en TLB
 
     TranslationEntry *pageTable;
     unsigned int pageTableSize;

@@ -77,8 +77,7 @@ AddrSpace::CopyToAddrSpace(OpenFile *file, int posInFile, int bytesToCopy, int v
 //	Assumes that the object code file is in NOFF format.
 //
 //	First, set up the translation from program memory to physical 
-//	memory.  For now, this is really simple (1:1), since we are
-//	only uniprogramming, and we have a single unsegmented page table
+//	memory.
 //
 //	"executable" is the file containing the object code to load into memory
 //----------------------------------------------------------------------
@@ -155,6 +154,76 @@ AddrSpace::~AddrSpace()
 }
 
 //----------------------------------------------------------------------
+// AddrSpace::LoadPageInTlb
+//      Carga una entrada nueva desde la tabla de paginación en la tlb
+//----------------------------------------------------------------------
+
+void
+AddrSpace::LoadPageInTlb(int vpn)
+{
+    if ((unsigned int) vpn >= numPages) {
+        DEBUG('a', "virtual page # %d too large for page table size %d!\n",
+                        vpn, numPages);
+        machine->RaiseException(AddressErrorException, 0);
+        return;
+    }
+    if (!pageTable[vpn].valid) {
+        DEBUG('a', "virtual page # %d not valid!\n", vpn);
+        machine->RaiseException(AddressErrorException, 0);
+        return;
+    }
+    int index = machine->tlbIndex;
+    machine->tlb[index] = pageTable[vpn];
+    machine->tlbIndex = (index + 1) % TLBSize;
+}
+
+//----------------------------------------------------------------------
+// AddrSpace::WriteMem
+//      Intenta grabar en memoria dos veces.
+//      La primera falla puede darse porque falta la entrada en la tlb,
+//      por lo que se vuelve a reintentar.
+//      Si el segundo intento falla, aborta.
+//----------------------------------------------------------------------
+
+void
+AddrSpace::WriteMem(int addr, int size, int value)
+{
+    ASSERT(interrupt->getStatus() != UserMode);
+    if (!machine->WriteMem(addr, size, value)) {
+#ifdef USE_TLB
+        if (!machine->WriteMem(addr, size, value)) {
+            ASSERT(false);
+        }
+#else
+        ASSERT(false);
+#endif
+    }
+}
+
+//----------------------------------------------------------------------
+// AddrSpace::ReadMem
+//      Intenta leer de memoria dos veces.
+//      La primera falla puede darse porque falta la entrada en la tlb,
+//      por lo que se vuelve a reintentar.
+//      Si el segundo intento falla, aborta.
+//----------------------------------------------------------------------
+
+void
+AddrSpace::ReadMem(int addr, int size, int *value)
+{
+    ASSERT(interrupt->getStatus() != UserMode);
+    if (!machine->ReadMem(addr, size, value)) {
+#ifdef USE_TLB
+        if (!machine->ReadMem(addr, size, value)) {
+            ASSERT(false);
+        }
+#else
+        ASSERT(false);
+#endif
+    }
+}
+
+//----------------------------------------------------------------------
 // AddrSpace::InitRegisters
 // 	Set the initial values for the user-level register set.
 //
@@ -202,8 +271,12 @@ void AddrSpace::SaveState()
 
 void AddrSpace::RestoreState() 
 {
+#ifdef USE_TLB
+    machine->InitializeTlb();
+#else
     machine->pageTable = pageTable;
     machine->pageTableSize = numPages;
+#endif
 }
 
 void

@@ -26,11 +26,12 @@
 void
 StartUserProgram(void *arg)
 {
-    const char *args = (const char *) arg;
+    char *args = (char *) arg;
     DEBUG('u', "Iniciando la ejecución del programa de usuario <%s>\n", args);
 
-    currentThread->space->InitRegisters();
-    currentThread->space->RestoreState();
+    AddrSpace *space = currentThread->space;
+    space->InitRegisters();
+    space->RestoreState();
 
     int i, j;
 
@@ -53,7 +54,7 @@ StartUserProgram(void *arg)
     for (i = 0, j = 0; i < len; i++) {
         int addr = base - align + i;
         if (newArg) {
-            machine->WriteMem(base - align - (argc - j) * 4, 4, addr);
+            space->WriteMem(base - align - (argc - j) * 4, 4, addr);
             j++;
             newArg = false;
         }
@@ -63,7 +64,7 @@ StartUserProgram(void *arg)
         } else {
             value = args[i];
         }
-        machine->WriteMem(addr, 1, value);
+        space->WriteMem(addr, 1, value);
     }
 
     // inicializa el stack pointer y pasa en r4, r5 el argc, argv respectivamente
@@ -72,6 +73,7 @@ StartUserProgram(void *arg)
     machine->WriteRegister(4, argc);
     machine->WriteRegister(5, base - align - argc * 4);
 
+    delete [] args;
     //machine->DumpMem(sp, base);
 
     machine->Run();
@@ -88,11 +90,8 @@ StartProcess(const char *program)
 {
     int i;
     for (i = 0; program[i] != ' ' && program[i] != '\0'; i++);
-    int len = i + 1;
-    char filename[len];
-    for (i = 0; i < len - 1; i++) {
-        filename[i] = program[i];
-    }
+    char *filename = new char[i + 1];
+    strncpy(filename, program, i);
     filename[i] = '\0';
 
     OpenFile *executable = fileSystem->Open(filename);
@@ -109,8 +108,11 @@ StartProcess(const char *program)
     thread->space = space;
 
     delete executable;
+    delete [] filename;
 
-    thread->Fork(StartUserProgram, (void *) program);
+    char *args = new char[strlen(program) + 1];
+    strcpy(args, program);
+    thread->Fork(StartUserProgram, (void *) args);
 
     return thread->getSpaceId();
 }

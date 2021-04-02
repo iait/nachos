@@ -36,8 +36,12 @@ SpaceId nextSpaceId = 0;
 
 Thread::Thread(const char* threadName)
 {
+    char *nameCpy = new char[strlen(threadName) + 1];
+    strcpy(nameCpy, threadName);
+    name = nameCpy;
+
     spaceId = nextSpaceId++;
-    name = threadName;
+
     stackTop = NULL;
     stack = NULL;
     status = JUST_CREATED;
@@ -60,8 +64,12 @@ Thread::Thread(const char* threadName)
 
 Thread::Thread(const char* threadName, bool flag)
 {
+    char *nameCpy = new char[strlen(threadName) + 1];
+    strcpy(nameCpy, threadName);
+    name = nameCpy;
+
     spaceId = nextSpaceId++;
-    name = threadName;
+
     stackTop = NULL;
     stack = NULL;
     status = JUST_CREATED;
@@ -83,8 +91,12 @@ Thread::Thread(const char* threadName, bool flag)
 
 Thread::Thread(const char* threadName, int prio)
 {
+    char *nameCpy = new char[strlen(threadName) + 1];
+    strcpy(nameCpy, threadName);
+    name = nameCpy;
+
     spaceId = nextSpaceId++;
-    name = threadName;
+
     stackTop = NULL;
     stack = NULL;
     status = JUST_CREATED;
@@ -113,8 +125,11 @@ Thread::~Thread()
     DEBUG('t', "Deleting thread \"%s\"\n", name);
 
     ASSERT(this != currentThread);
-    if (stack != NULL)
+    if (stack != NULL) {
 	DeallocBoundedArray((char *) stack, StackSize * sizeof(HostMemoryAddress));
+    }
+
+    delete [] name;
 }
 
 //----------------------------------------------------------------------

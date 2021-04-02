@@ -31,8 +31,8 @@ SpaceId StartProcess(const char *file);
 
 // Internal functions
 char *ReadStringFromMem(int addr);
-char *ReadStringFromMem(int addr, int numBytes);
-void WriteStringToMem(int addr, int numBytes, char *buffer);
+char *ReadFromMem(int addr, int numBytes);
+void WriteToMem(int addr, int numBytes, char *buffer);
 int ReadFromStdIn(int numBytes, char *buffer);
 void WriteToStdOut(int numBytes, char *buffer);
 
@@ -75,7 +75,7 @@ ExceptionHandler(ExceptionType which)
             {
                 DEBUG('u', "Programa de usuario hace llamada a Exit.\n");
                 int status = machine->ReadRegister(4);
-                DEBUG('u', "Se termina hilo %s con estado %d\n", currentThread->getName(), status);
+                DEBUG('u', "Se termina hilo <%s> con estado %d\n", currentThread->getName(), status);
                 currentThread->Finish(status);
                 break;
             }
@@ -85,6 +85,7 @@ ExceptionHandler(ExceptionType which)
                 int nameVirtAddr = machine->ReadRegister(4);
                 char *name = ReadStringFromMem(nameVirtAddr);
                 SpaceId spaceId = StartProcess(name);
+                free(name);
                 machine->WriteRegister(2, spaceId);
                 break;
             }
@@ -136,7 +137,7 @@ ExceptionHandler(ExceptionType which)
                 int addr = machine->ReadRegister(4);
                 int numBytes = machine->ReadRegister(5);
                 OpenFileId fileId = machine->ReadRegister(6);
-                char buffer[numBytes + 1];
+                char *buffer = new char[numBytes];
                 int read;
                 if (fileId == 0) { // stdin
                     read = ReadFromStdIn(numBytes, buffer);
@@ -153,10 +154,10 @@ ExceptionHandler(ExceptionType which)
                     }
                     read = file->Read(buffer, numBytes);
                 }
-                WriteStringToMem(addr, read, buffer);
+                WriteToMem(addr, read, buffer);
                 machine->WriteRegister(2, read);
-                buffer[read] = '\0'; // para debug
-                DEBUG('u', "Se lee <%s> del archivo con descriptor %d\n", buffer, fileId);
+                delete [] buffer;
+                DEBUG('u', "Se leen %d bytes del archivo con descriptor %d\n", numBytes, fileId);
                 break;
             }
             case SC_Write:
@@ -165,9 +166,10 @@ ExceptionHandler(ExceptionType which)
                 int addr = machine->ReadRegister(4);
                 int numBytes = machine->ReadRegister(5);
                 OpenFileId fileId = machine->ReadRegister(6);
-                char *content = ReadStringFromMem(addr, numBytes);
+                char *content = ReadFromMem(addr, numBytes);
                 if (fileId == 0) { // stdin
                     printf("Se intenta escribir en la entrada estándar.\n");
+                    free(content);
                     currentThread->Finish(-1);
                     ASSERT(false);
                 } else if (fileId == 1) { // stdout
@@ -176,12 +178,14 @@ ExceptionHandler(ExceptionType which)
                     OpenFile *file = currentThread->GetDescriptor(fileId);
                     if (file == NULL) {
                         printf("No se encuentra el archivo con descriptor %d\n", fileId);
+                        free(content);
                         currentThread->Finish(-1);
                         ASSERT(false);
                     }
                     file->Write(content, numBytes);
                 }
-                DEBUG('u', "Se escribe <%s> en el archivo con descriptor %d\n", content, fileId);
+                DEBUG('u', "Se escriben %d bytes en el archivo con descriptor %d\n", numBytes, fileId);
+                free(content);
                 break;
             }
             case SC_Close:
@@ -206,6 +210,14 @@ ExceptionHandler(ExceptionType which)
         machine->WriteRegister(PrevPCReg, machine->ReadRegister(PCReg));
         machine->WriteRegister(PCReg, machine->ReadRegister(NextPCReg));
         machine->WriteRegister(NextPCReg, machine->ReadRegister(PCReg) + 4);
+    } else if (which == PageFaultException) {
+        int badVirtAddr = machine->ReadRegister(BadVAddrReg);
+        DEBUG('u', "PageFaultException en dirección virtual %d\n", badVirtAddr);
+        int virtPage = badVirtAddr / PageSize;
+        currentThread->space->LoadPageInTlb(virtPage);
+    } else if (which == ReadOnlyException) {
+        printf("Se intenta escribir una página de solo lectura\n");
+        ASSERT(false);
     } else {
 	printf("Unexpected user mode exception %d %d\n", which, type);
 	ASSERT(false);
@@ -215,56 +227,70 @@ ExceptionHandler(ExceptionType which)
 //-------------------------------------------------------------
 // ReadStringFromMem
 //
-//      Copia una cadena finalizada en '\0' desde la memoria principal.
+//      Lee una cadena de caracteres finalizada en el caracter nulo '\0'
+//      desde la memoria principal iniciando en la dirección virtual "addr".
+//
+//      Si la primera lectura de un caracter falla, vuelve a reintentar debido
+//      a que puede ser por que faltaba la entrada en la tlb.
+//
 //-------------------------------------------------------------
 char *ReadStringFromMem(int addr)
 {
-        int n, i = 0;
-        char str[1024];
+        const int n = 1024;
 
+        int c, i = 0, limit = n;
+        char *str = (char *) malloc(sizeof(char) * limit);
         do {
-            bool result = machine->ReadMem(addr++, 1, &n);
-            ASSERT(result);
-            str[i++] = (char) n;
-        } while (n != '\0' && i < 1024);
-        ASSERT(i < 1024);
+            currentThread->space->ReadMem(addr++, 1, &c);
+            if (i == limit) {
+                limit += n;
+                str = (char *) realloc(str, sizeof(char) * limit);
+            }
+            str[i++] = (char) c;
+        } while (c != '\0');
+        if (i != limit) {
+            str = (char *) realloc(str, sizeof(char) * i);
+        }
 
-        char *ret = (char *) malloc(sizeof(char) * i);
-        strcpy(ret, str);
-
-        return ret;
+        return str;
 }
 
 //-------------------------------------------------------------
-// ReadStringFromMem
+// ReadFromMem
 //
-//      Copia una cadena desde la memoria principal hasta el número de bytes
-//      indicado. Le agrega '\0' al final de la cadena solo para debug.
+//      Lee "numBytes" desde la memoria principal iniciando en la
+//      dirección virtual "addr".
+//
+//      Si la primera lectura de un byte falla, vuelve a reintentar debido
+//      a que puede ser por que faltaba la entrada en la tlb.
+//
 //-------------------------------------------------------------
-char *ReadStringFromMem(int addr, int numBytes)
+char *ReadFromMem(int addr, int numBytes)
 {
         int n, i = 0;
-        char *ret = (char *) malloc(sizeof(char) * (numBytes + 1));
-
+        char *ret = (char *) malloc(sizeof(char) * numBytes);
         do {
-            bool result = machine->ReadMem(addr++, 1, &n);
-            ASSERT(result);
+            currentThread->space->ReadMem(addr++, 1, &n);
             ret[i++] = (char) n;
         } while (i < numBytes);
-        ret[i] = '\0';
 
         return ret;
 }
 
 //-------------------------------------------------------------
-// WriteStringToMem
+// WriteToMem
 //
-//      Copia una cadena hacia la memoria principal.
+//      Escribe "numBytes" de "buffer" en la memoria pincipal iniciando en la
+//      dirección virtual "addr".
+//
+//      Si la primera escritura de un byte falla, vuelve a reintentar debido
+//      a que puede ser por que faltaba la entrada en la tlb.
+//
 //-------------------------------------------------------------
-void WriteStringToMem(int addr, int numBytes, char *buffer)
+void WriteToMem(int addr, int numBytes, char *buffer)
 {
         for (int i = 0; i < numBytes; i++) {
-            machine->WriteMem(addr++, 1, (int) buffer[i]);
+            currentThread->space->WriteMem(addr++, 1, (int) buffer[i]);
         }
 }
 

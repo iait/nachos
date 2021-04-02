@@ -37,6 +37,13 @@ class AddrSpace {
 
     int getSize() { return numPages * PageSize; }  // retorna el tamaño del address space
 
+    void LoadPageInTlb(int virtPage);   // Carga la página en la TLB
+
+    void WriteMem(int addr, int size, int value);   // lecturas y escrituras en memoria
+    void ReadMem(int addr, int size, int *value);   // que hacen un reintento por si falta
+                                                    // la página en la tlb
+                                                    // solo para usar desde el sistema
+
   private:
     // Agregado. Copia desde el archivo al address space.
     void CopyToAddrSpace(OpenFile *file, int posInFile, int bytesToCopy, int virtAddr);
