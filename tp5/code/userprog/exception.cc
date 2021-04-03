@@ -63,164 +63,197 @@ ExceptionHandler(ExceptionType which)
 {
     int type = machine->ReadRegister(2);
 
-    if (which == SyscallException) {
+    switch (which) {
+    case SyscallException:
+    {
         switch (type) {
-            case SC_Halt:
-            {
-                DEBUG('a', "Shutdown, initiated by user program.\n");
-                interrupt->Halt();
-                break;
-            }
-            case SC_Exit:
-            {
-                DEBUG('u', "Programa de usuario hace llamada a Exit.\n");
-                int status = machine->ReadRegister(4);
-                DEBUG('u', "Se termina hilo <%s> con estado %d\n", currentThread->getName(), status);
-                currentThread->Finish(status);
-                break;
-            }
-            case SC_Exec:
-            {
-                DEBUG('u', "Programa de usuario hace llamada a Exec.\n");
-                int nameVirtAddr = machine->ReadRegister(4);
-                char *name = ReadStringFromMem(nameVirtAddr);
-                SpaceId spaceId = StartProcess(name);
+        case SC_Halt:
+        {
+            DEBUG('a', "Shutdown, initiated by user program.\n");
+            interrupt->Halt();
+            break;
+        }
+        case SC_Exit:
+        {
+            DEBUG('u', "Programa de usuario hace llamada a Exit.\n");
+            int status = machine->ReadRegister(4);
+            DEBUG('u', "Se termina hilo <%s> con estado %d\n", currentThread->getName(), status);
+            currentThread->Finish(status);
+            break;
+        }
+        case SC_Exec:
+        {
+            DEBUG('u', "Programa de usuario hace llamada a Exec.\n");
+            int nameVirtAddr = machine->ReadRegister(4);
+            char *name = ReadStringFromMem(nameVirtAddr);
+            SpaceId spaceId = StartProcess(name);
+            free(name);
+            machine->WriteRegister(2, spaceId);
+            break;
+        }
+        case SC_Join:
+        {
+            DEBUG('u', "Programa de usuario hace llamada a Join.\n");
+            SpaceId spaceId = machine->ReadRegister(4);
+            int exitStatus = scheduler->Join(spaceId);
+            machine->WriteRegister(2, exitStatus);
+            break;
+        }
+        case SC_Create:
+        {
+            DEBUG('u', "Programa de usuario hace llamada a Create.\n");
+            int nameVirtAddr = machine->ReadRegister(4);
+            char *name = ReadStringFromMem(nameVirtAddr);
+            bool ret = fileSystem->Create(name, 0);
+            if (!ret) {
+                printf("No se pudo crear el archivo %s\n", name);
                 free(name);
-                machine->WriteRegister(2, spaceId);
-                break;
+                currentThread->Finish(-1);
+                ASSERT(false);
             }
-            case SC_Join:
-            {
-                DEBUG('u', "Programa de usuario hace llamada a Join.\n");
-                SpaceId spaceId = machine->ReadRegister(4);
-                int exitStatus = scheduler->Join(spaceId);
-                machine->WriteRegister(2, exitStatus);
-                break;
-            }
-            case SC_Create:
-            {
-                DEBUG('u', "Programa de usuario hace llamada a Create.\n");
-                int nameVirtAddr = machine->ReadRegister(4);
-                char *name = ReadStringFromMem(nameVirtAddr);
-                bool ret = fileSystem->Create(name, 0);
-                if (!ret) {
-                    printf("No se pudo crear el archivo %s\n", name);
-                    free(name);
-                    currentThread->Finish(-1);
-                    ASSERT(false);
-                }
-                DEBUG('u', "Se crea el archivo %s.\n", name);
+            DEBUG('u', "Se crea el archivo %s.\n", name);
+            free(name);
+            break;
+        }
+        case SC_Open:
+        {
+            DEBUG('u', "Programa de usuario hace llamada a Open.\n");
+            int nameVirtAddr = machine->ReadRegister(4);
+            char *name = ReadStringFromMem(nameVirtAddr);
+            OpenFile *file = fileSystem->Open(name);
+            if (file == NULL) {
+                printf("No se pudo abrir el archivo %s\n", name);
                 free(name);
-                break;
+                currentThread->Finish(-1);
+                ASSERT(false);
             }
-            case SC_Open:
-            {
-                DEBUG('u', "Programa de usuario hace llamada a Open.\n");
-                int nameVirtAddr = machine->ReadRegister(4);
-                char *name = ReadStringFromMem(nameVirtAddr);
-                OpenFile *file = fileSystem->Open(name);
+            OpenFileId fileId = currentThread->AgregarDescriptor(file);
+            machine->WriteRegister(2, fileId);
+            DEBUG('u', "Se abre el archivo %s con descriptor %d\n", name, fileId);
+            free(name);
+            break;
+        }
+        case SC_Read:
+        {
+            DEBUG('u', "Programa de usuario hace llamada a Read.\n");
+            int addr = machine->ReadRegister(4);
+            int numBytes = machine->ReadRegister(5);
+            OpenFileId fileId = machine->ReadRegister(6);
+            char *buffer = new char[numBytes];
+            int read;
+            if (fileId == 0) { // stdin
+                read = ReadFromStdIn(numBytes, buffer);
+            } else if (fileId == 1) { // stdout
+                printf("Se intenta leer de la salida estándar.\n");
+                currentThread->Finish(-1);
+                ASSERT(false);
+            } else {
+                OpenFile *file = currentThread->GetDescriptor(fileId);
                 if (file == NULL) {
-                    printf("No se pudo abrir el archivo %s\n", name);
-                    free(name);
-                    currentThread->Finish(-1);
-                    ASSERT(false);
-                }
-                OpenFileId fileId = currentThread->AgregarDescriptor(file);
-                machine->WriteRegister(2, fileId);
-                DEBUG('u', "Se abre el archivo %s con descriptor %d\n", name, fileId);
-                free(name);
-                break;
-            }
-            case SC_Read:
-            {
-                DEBUG('u', "Programa de usuario hace llamada a Read.\n");
-                int addr = machine->ReadRegister(4);
-                int numBytes = machine->ReadRegister(5);
-                OpenFileId fileId = machine->ReadRegister(6);
-                char *buffer = new char[numBytes];
-                int read;
-                if (fileId == 0) { // stdin
-                    read = ReadFromStdIn(numBytes, buffer);
-                } else if (fileId == 1) { // stdout
-                    printf("Se intenta leer de la salida estándar.\n");
-                    currentThread->Finish(-1);
-                    ASSERT(false);
-                } else {
-                    OpenFile *file = currentThread->GetDescriptor(fileId);
-                    if (file == NULL) {
-                        printf("No se encuentra el archivo con descriptor %d\n", fileId);
-                        currentThread->Finish(-1);
-                        ASSERT(false);
-                    }
-                    read = file->Read(buffer, numBytes);
-                }
-                WriteToMem(addr, read, buffer);
-                machine->WriteRegister(2, read);
-                delete [] buffer;
-                DEBUG('u', "Se leen %d bytes del archivo con descriptor %d\n", numBytes, fileId);
-                break;
-            }
-            case SC_Write:
-            {
-                DEBUG('u', "Programa de usuario hace llamada a Write.\n");
-                int addr = machine->ReadRegister(4);
-                int numBytes = machine->ReadRegister(5);
-                OpenFileId fileId = machine->ReadRegister(6);
-                char *content = ReadFromMem(addr, numBytes);
-                if (fileId == 0) { // stdin
-                    printf("Se intenta escribir en la entrada estándar.\n");
-                    free(content);
-                    currentThread->Finish(-1);
-                    ASSERT(false);
-                } else if (fileId == 1) { // stdout
-                    WriteToStdOut(numBytes, content);
-                } else {
-                    OpenFile *file = currentThread->GetDescriptor(fileId);
-                    if (file == NULL) {
-                        printf("No se encuentra el archivo con descriptor %d\n", fileId);
-                        free(content);
-                        currentThread->Finish(-1);
-                        ASSERT(false);
-                    }
-                    file->Write(content, numBytes);
-                }
-                DEBUG('u', "Se escriben %d bytes en el archivo con descriptor %d\n", numBytes, fileId);
-                free(content);
-                break;
-            }
-            case SC_Close:
-            {
-                DEBUG('u', "Programa de usuario hace llamada a Close.\n");
-                OpenFileId fileId = machine->ReadRegister(4);
-                ASSERT(fileId > 1);
-                bool ret = currentThread->BorrarDescriptor(fileId);
-                if (!ret) {
                     printf("No se encuentra el archivo con descriptor %d\n", fileId);
                     currentThread->Finish(-1);
                     ASSERT(false);
                 }
-                DEBUG('u', "Se cierra el archivo con descriptor %d\n", fileId);
-                break;
+                read = file->Read(buffer, numBytes);
             }
-            default:
-                printf("Llamada a sistema inesperada %d\n", type);
+            WriteToMem(addr, read, buffer);
+            machine->WriteRegister(2, read);
+            delete [] buffer;
+            DEBUG('u', "Se leen %d bytes del archivo con descriptor %d\n", numBytes, fileId);
+            break;
+        }
+        case SC_Write:
+        {
+            DEBUG('u', "Programa de usuario hace llamada a Write.\n");
+            int addr = machine->ReadRegister(4);
+            int numBytes = machine->ReadRegister(5);
+            OpenFileId fileId = machine->ReadRegister(6);
+            char *content = ReadFromMem(addr, numBytes);
+            if (fileId == 0) { // stdin
+                printf("Se intenta escribir en la entrada estándar.\n");
+                free(content);
+                currentThread->Finish(-1);
                 ASSERT(false);
-                break;
+            } else if (fileId == 1) { // stdout
+                WriteToStdOut(numBytes, content);
+            } else {
+                OpenFile *file = currentThread->GetDescriptor(fileId);
+                if (file == NULL) {
+                    printf("No se encuentra el archivo con descriptor %d\n", fileId);
+                    free(content);
+                    currentThread->Finish(-1);
+                    ASSERT(false);
+                }
+                file->Write(content, numBytes);
+            }
+            DEBUG('u', "Se escriben %d bytes en el archivo con descriptor %d\n", numBytes, fileId);
+            free(content);
+            break;
+        }
+        case SC_Close:
+        {
+            DEBUG('u', "Programa de usuario hace llamada a Close.\n");
+            OpenFileId fileId = machine->ReadRegister(4);
+            ASSERT(fileId > 1);
+            bool ret = currentThread->BorrarDescriptor(fileId);
+            if (!ret) {
+                printf("No se encuentra el archivo con descriptor %d\n", fileId);
+                currentThread->Finish(-1);
+                ASSERT(false);
+            }
+            DEBUG('u', "Se cierra el archivo con descriptor %d\n", fileId);
+            break;
+        }
+        default:
+        {
+            printf("Llamada a sistema inesperada %d\n", type);
+            currentThread->Finish(-1);
+            ASSERT(false);
+            break;
+        }
         }
         machine->WriteRegister(PrevPCReg, machine->ReadRegister(PCReg));
         machine->WriteRegister(PCReg, machine->ReadRegister(NextPCReg));
         machine->WriteRegister(NextPCReg, machine->ReadRegister(PCReg) + 4);
-    } else if (which == PageFaultException) {
+        break;
+    }
+    case PageFaultException:
+    {
         int badVirtAddr = machine->ReadRegister(BadVAddrReg);
         DEBUG('u', "PageFaultException en dirección virtual %d\n", badVirtAddr);
         int virtPage = badVirtAddr / PageSize;
         currentThread->space->LoadPageInTlb(virtPage);
-    } else if (which == ReadOnlyException) {
-        printf("Se intenta escribir una página de solo lectura\n");
+        break;
+    }
+    case ReadOnlyException:
+    {
+        int badVirtAddr = machine->ReadRegister(BadVAddrReg);
+        printf("Se intenta escribir en dirección virtual de solo lectura %d\n", badVirtAddr);
+        currentThread->Finish(-1);
         ASSERT(false);
-    } else {
-	printf("Unexpected user mode exception %d %d\n", which, type);
-	ASSERT(false);
+        break;
+    }
+    case BusErrorException:
+    {
+        int badVirtAddr = machine->ReadRegister(BadVAddrReg);
+        printf("BusErrorException en dirección virtual %d\n", badVirtAddr);
+        currentThread->Finish(-1);
+        ASSERT(false);
+        break;
+    }
+    case AddressErrorException:
+    {
+        int badVirtAddr = machine->ReadRegister(BadVAddrReg);
+        printf("AddressErrorException en dirección virtual %d\n", badVirtAddr);
+        currentThread->Finish(-1);
+        ASSERT(false);
+        break;
+    }
+    default:
+    {
+        printf("Unexpected user mode exception %d %d\n", which, type);
+        ASSERT(false);
+    }
     }
 }
 

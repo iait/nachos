@@ -96,8 +96,13 @@ AddrSpace::AddrSpace(OpenFile *executable)
     size = noffH.code.size + noffH.initData.size + noffH.uninitData.size 
 			+ UserStackSize;	// we need to increase the size
 						// to leave room for the stack
+
+    DEBUG('u', "Tamaño del address space: total=%d, .text=%d, .data=%d, .bss=%d\n",
+                    size, noffH.code.size, noffH.initData.size, noffH.uninitData.size);
+
     numPagesCode = divRoundDown(noffH.code.size, PageSize); // número de páginas
                                                             // que solo tienen código
+
     numPages = divRoundUp(size, PageSize);
     size = numPages * PageSize;
 
@@ -106,7 +111,7 @@ AddrSpace::AddrSpace(OpenFile *executable)
 						// at least until we have
 						// virtual memory
 
-    DEBUG('a', "Initializing address space num pages %d, size %d\n", numPages, size);
+    DEBUG('u', "Initializing address space num pages %d, size %d\n", numPages, size);
 // first, set up the translation 
     pageTable = new TranslationEntry[numPages];
     for (i = 0; i < numPages; i++) {
@@ -117,7 +122,7 @@ AddrSpace::AddrSpace(OpenFile *executable)
 	pageTable[i].valid = true;
 	pageTable[i].use = false;
 	pageTable[i].dirty = false;
-	pageTable[i].readOnly = (i <= numPagesCode);    // si la página solamente tiene código
+	pageTable[i].readOnly = (i < numPagesCode);    // si la página solamente tiene código
                                                         // la puedo marcar como read-only
 
 	bzero(machine->mainMemory + j * PageSize, PageSize);  // inicializa en cero la página
@@ -127,12 +132,14 @@ AddrSpace::AddrSpace(OpenFile *executable)
 
 // then, copy the code and data segments into memory
     if (noffH.code.size > 0) {
-        DEBUG('u', "Initializing code segment\n");
+        DEBUG('u', "Inicializando code segment: addr=%d, size=%d\n",
+                        noffH.code.virtualAddr, noffH.code.size);
         CopyToAddrSpace(executable, noffH.code.inFileAddr,
                         noffH.code.size, noffH.code.virtualAddr);
     }
     if (noffH.initData.size > 0) {
-        DEBUG('u', "Initializing data segment\n");
+        DEBUG('u', "Inicializando data segment: addr=%d, size=%d\n",
+                        noffH.initData.virtualAddr, noffH.initData.size);
         CopyToAddrSpace(executable, noffH.initData.inFileAddr,
                         noffH.initData.size, noffH.initData.virtualAddr);
     }
@@ -283,6 +290,12 @@ void
 AddrSpace::DumpPageTable()
 {
     for (unsigned int i = 0; i < numPages; i++) {
-        printf("%d: %d\n", i, pageTable[i].physicalPage);
+        TranslationEntry entry = pageTable[i];
+        printf("virtPage=%d, physPage=%d, valid=%s, readOnly=%s, use=%s, dirty=%s\n",
+                        entry.virtualPage, entry.physicalPage,
+                        entry.valid ? "true" : "false",
+                        entry.readOnly ? "true" : "false",
+                        entry.use ? "true" : "false",
+                        entry.dirty ? "true" : "false");
     }
 }
