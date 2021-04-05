@@ -34,9 +34,7 @@ Scheduler::Scheduler()
     }
     readyList = readyListP[5]; //Para mantener compatibilidad con el código original.
 
-    statusList = new List<int>;
-    lock = new Lock("status-lock");
-    cond = new Condition("status-cond", lock);
+    statusList = new SynchList<int>;
 } 
 
 //----------------------------------------------------------------------
@@ -51,8 +49,6 @@ Scheduler::~Scheduler()
     }
 
     delete statusList;
-    delete lock;
-    delete cond;
 } 
 
 //----------------------------------------------------------------------
@@ -207,10 +203,7 @@ void Scheduler::Promote(Thread *thread)
 //------------------------------------------------------------------------
 void Scheduler::Finish(SpaceId spaceId, int status)
 {
-    lock->Acquire();
     statusList->Append(spaceId, status);
-    cond->Broadcast();
-    lock->Release();
 }
 
 //------------------------------------------------------------------------
@@ -223,12 +216,6 @@ void Scheduler::Finish(SpaceId spaceId, int status)
 //------------------------------------------------------------------------
 int Scheduler::Join(SpaceId spaceId)
 {
-    lock->Acquire();
-    int status;
-    while (!statusList->Remove(spaceId, &status)) {
-        cond->Wait();
-    }
-    lock->Release();
-    return status;
+    return statusList->Remove(spaceId);
 }
 

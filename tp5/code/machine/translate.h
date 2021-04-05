@@ -31,7 +31,7 @@ class TranslationEntry {
   public:
     int virtualPage;  	// The page number in virtual memory.
     int physicalPage;  	// The page number in real memory (relative to the
-			//  start of "mainMemory"
+			// start of "mainMemory"
     bool valid;         // If this bit is set, the translation is ignored.
 			// (In other words, the entry hasn't been initialized.)
     bool readOnly;	// If this bit is set, the user program is not allowed
@@ -42,6 +42,8 @@ class TranslationEntry {
 			// page is modified.
     bool init;          // Indica si la página está inicializada en la memoria
                         // física o hay que cargarda desde el ejecutable.
+    bool disk;          // la página no está en memoria física sino que hay que
+                        // traerla del disco.
 };
 
 #endif

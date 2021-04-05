@@ -24,7 +24,7 @@
 const unsigned STACK_FENCEPOST = 0xdeadbeef;	
 
 // contador para asignar los identificadores de hilos spaceId
-SpaceId nextSpaceId = 0;
+SpaceId nextSpaceId = 1;
 
 //----------------------------------------------------------------------
 // Thread::Thread

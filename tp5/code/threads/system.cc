@@ -41,6 +41,10 @@ SynchConsole *synchConsole;
 PostOffice *postOffice;
 #endif
 
+#ifdef VM
+SynchList<CoreEntry*> *coreMap;
+#endif
+
 
 // External definition, to allow us to take a pointer to this function
 extern void Cleanup();
@@ -194,6 +198,16 @@ Initialize(int argc, char **argv)
 #ifdef NETWORK
     postOffice = new PostOffice(netname, rely, 10);
 #endif
+
+#ifdef VM
+    coreMap = new SynchList<CoreEntry*>;
+    for (int i = 0; i < NumPhysPages; i++) {
+        CoreEntry *entry = new CoreEntry();
+        entry->physicalPage = i;
+        entry->space = NULL;
+        coreMap->Append(entry);
+    }
+#endif
 }
 
 //----------------------------------------------------------------------
@@ -225,6 +239,13 @@ Cleanup()
     delete synchDisk;
 #endif
     
+#ifdef VM
+    for (int i = 0; i < NumPhysPages; i++) {
+        delete coreMap->Remove();
+    }
+    delete coreMap;
+#endif
+
     delete timer;
     delete scheduler;
     delete interrupt;

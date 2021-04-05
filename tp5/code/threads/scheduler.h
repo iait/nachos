@@ -10,7 +10,7 @@
 #define SCHEDULER_H
 
 #include "copyright.h"
-#include "list.h"
+#include "synchlist.h"
 #include "synch.h"
 #include "thread.h"
 
@@ -42,9 +42,7 @@ class Scheduler {
     List<Thread*> *readyListP[11];	// Colas de prioridad
 
     // agregado para multiprogramación
-    List<int> *statusList;              // lista de los estados de salida de los hilos
-    Lock *lock;
-    Condition *cond;
+    SynchList<int> *statusList;         // lista de los estados de salida de los hilos
 };
 
 #endif // SCHEDULER_H

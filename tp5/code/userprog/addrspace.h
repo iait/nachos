@@ -25,7 +25,8 @@ extern BitMap *memMap;
 
 class AddrSpace {
   public:
-    AddrSpace(OpenFile *executable);	// Create an address space,
+    AddrSpace(OpenFile *executable, SpaceId spaceId);
+                                        // Create an address space,
 					// initializing it with the program
 					// stored in the file "executable"
     ~AddrSpace();			// De-allocate an address space
@@ -46,18 +47,27 @@ class AddrSpace {
                                                     // solo para usar desde el sistema
 
   private:
-    // Agregado. Copia desde el archivo al address space.
-    void CopyToAddrSpace(Segment seg, int virtAddr);
+    // agregado
+    void CopyToAddrSpace(Segment seg, int virtAddr); // copia desde el ejecutable al address space
+    void SaveToDisk(int vpn);                        // guarda la página al disco
+    void RestoreFromDisk(int vpn);                   // restaura la página desde el disco
 
     void DumpPageTable(); // para debug
+    void DumpExec();
+    void DumpSwap();
 
     OpenFile *exec;                     // ejecutable del programa
-    NoffHeader noffH;
+    NoffHeader noffH;                   // cabecera del ejecutable
+
+    OpenFile *swap;                     // archivo swap para paginación
+    char *name;                         // nombre del archivo de paginación
 
     TranslationEntry *pageTable;	// Assume linear page table translation
 					// for now!
     unsigned int numPages;		// Number of pages in the virtual 
 					// address space
+
+    SpaceId spaceId;
 };
 
 #endif // ADDRSPACE_H

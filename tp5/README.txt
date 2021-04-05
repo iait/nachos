@@ -33,3 +33,20 @@ que entre otra nueva. En cambio, si el tamaño de la TLB es de 32 entradas, sí 
 de paginación y nuevas entradas en la TLB en ocaciones tienen que reemplazar a otras existentes.
 Sin embargo, vemos que para este tipo de programas el porcentaje de aciertos es muy alto tanto para
 una TLB de 32 como de 64, por lo que considero que ambos tamaños son adecuados.
+
+Se implementa carga por demanda pura en AddrSpace. Se agrega un booleano en la entrada de la tabla 
+de paginación para indicar si la página está inicializada o no. En el constructor del AddrSpace no 
+se inicializa ninguna página. Cuando una página es cargada a la TLB por primera vez en el método 
+"LoadPageInTlb", se inicializa la página copiando los datos desde el ejecutable si corresponde.
+
+En lugar de usar un List, Lock y Condition en el scheduler para la lista de estados de salida
+pasé a utilizar un SynchList ya que el resultado es exactamente el mismo.
+
+Se agrega la clase CoreEntry en "coremap.h" y una lista global de tipo SynchList para el coremap, 
+para llevar registro de a qué página virtual de qué address space corresponde cada página física.
+
+Se agrega un OpenFile llamado swap al AddrSpace para paginación.
+
+Con la bandera de debug "e" se imprime el estado de salida de los procesos al hacer la llamada a 
+sistema Exit. Con la bandera "v" se imprime información de memoria virtual.
+

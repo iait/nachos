@@ -17,6 +17,7 @@
 
 #include "copyright.h"
 #include "system.h"
+#include "coremap.h"
 #include "addrspace.h"
 
 BitMap *memMap = new BitMap(NumPhysPages);
@@ -58,9 +59,25 @@ SwapHeader (NoffHeader *noffH)
 //
 //	"executable" is the file containing the object code to load into memory
 //----------------------------------------------------------------------
-AddrSpace::AddrSpace(OpenFile *executable)
+AddrSpace::AddrSpace(OpenFile *executable, SpaceId id)
 {
-    unsigned int i, j, size, numPagesCode;
+    unsigned int i, size, numPagesCode;
+
+    spaceId = id;
+
+#ifdef VM
+    int numDigits = 0;
+    for (int n = spaceId; n != 0; n = n / 10) {
+        numDigits++;
+    }
+    name = new char[5 + numDigits];
+    sprintf(name, "SWAP.%d", spaceId);
+    bool ret = fileSystem->Create(name, 0);
+    ASSERT(ret);
+    swap = fileSystem->Open(name);
+    ASSERT(swap != NULL);
+    DEBUG('v', "Se creó el archivo de paginación <%s>\n", name);
+#endif
 
     exec = executable;
     exec->ReadAt((char *) &noffH, sizeof(noffH), 0);
@@ -81,25 +98,26 @@ AddrSpace::AddrSpace(OpenFile *executable)
     numPages = divRoundUp(size, PageSize);
     size = numPages * PageSize;
 
+#ifndef VM
     ASSERT(((int) numPages) <= memMap->NumClear()); // check we're not trying to run anything too big
+#endif
+    DEBUG('v', "Número de páginas virtuales %d\n", numPages);
 
     DEBUG('u', "Initializing address space num pages %d, size %d\n", numPages, size);
 // first, set up the translation 
     pageTable = new TranslationEntry[numPages];
     for (i = 0; i < numPages; i++) {
-        j = memMap->Find();  // busca una página física libre
-        ASSERT(j >= 0);
         pageTable[i].virtualPage = i;
-        pageTable[i].physicalPage = j;
-        pageTable[i].valid = true;
-        pageTable[i].use = false;
-        pageTable[i].dirty = false;
-        pageTable[i].readOnly = (i < numPagesCode);    // si la página solamente tiene código
-                                                        // la puedo marcar como read-only
 #ifdef USE_TLB
+        pageTable[i].disk = true;
         pageTable[i].init = false;
 #else
-        bzero(machine->mainMemory + j * PageSize, PageSize);  // inicializa en cero la página
+        pageTable[i].disk = false;
+        pageTable[i].init = true;
+        int physPage = memMap->Find();  // busca una página física libre
+        ASSERT(physPage >= 0);
+        pageTable[i].physicalPage = physPage;
+        bzero(machine->mainMemory + physPage * PageSize, PageSize);  // inicializa en cero la página
         // copia segmento de code e initData si corresponde
         if (noffH.code.size > 0) {
             CopyToAddrSpace(noffH.code, i);
@@ -107,11 +125,16 @@ AddrSpace::AddrSpace(OpenFile *executable)
         if (noffH.initData.size > 0) {
             CopyToAddrSpace(noffH.initData, i);
         }
-        pageTable[i].init = true;
 #endif
+        pageTable[i].valid = true;
+        pageTable[i].use = false;
+        pageTable[i].dirty = false;
+        pageTable[i].readOnly = (i < numPagesCode);    // si la página solamente tiene código
+                                                        // la puedo marcar como read-only
     }
 //    DumpPageTable();
 //    memMap->Print();
+//    DumpExec();
 
 }
 
@@ -128,6 +151,46 @@ AddrSpace::~AddrSpace()
    }
    delete pageTable;
    delete exec;
+#ifdef VM
+   delete swap;
+   bool ret = fileSystem->Remove(name);
+   ASSERT(ret);
+   delete name;
+#endif
+}
+
+//----------------------------------------------------------------------
+// AddrSpace::SaveToDisk
+//     Guarda la página virtual desde la memoria principal al archivo SWAP
+//     en el disco si está sucia.
+//----------------------------------------------------------------------
+
+void
+AddrSpace::SaveToDisk(int vpn)
+{
+    ASSERT(!pageTable[vpn].disk);
+    pageTable[vpn].disk = true;
+    if (!pageTable[vpn].dirty) {
+        return;
+    }
+    DEBUG('v', "Guarda la página %d en el archivo swap del disco\n", vpn);
+    int from = pageTable[vpn].physicalPage * PageSize;
+    swap->WriteAt(machine->mainMemory + from, PageSize, vpn * PageSize);
+//    DumpSwap();
+}
+
+//----------------------------------------------------------------------
+// AddrSpace::RestoreFromDisk
+//     Restaura la página virtual desde el archivo SWAP del disco hacia
+//     la memoria principal.
+//----------------------------------------------------------------------
+
+void
+AddrSpace::RestoreFromDisk(int vpn)
+{
+    DEBUG('v', "Se restaura la página %d desde el archivo swap del disco\n", vpn);
+    int from = pageTable[vpn].physicalPage * PageSize;
+    swap->ReadAt(machine->mainMemory + from, PageSize, vpn * PageSize);
 }
 
 //----------------------------------------------------------------------
@@ -141,36 +204,82 @@ void
 AddrSpace::LoadPageInTlb(int vpn)
 {
     if ((unsigned int) vpn >= numPages) {
-        DEBUG('a', "virtual page # %d too large for page table size %d!\n",
+        DEBUG('v', "virtual page # %d too large for page table size %d!\n",
                         vpn, numPages);
         machine->RaiseException(AddressErrorException, 0);
         return;
     }
     if (!pageTable[vpn].valid) {
-        DEBUG('a', "virtual page # %d not valid!\n", vpn);
+        DEBUG('v', "virtual page # %d not valid!\n", vpn);
         machine->RaiseException(AddressErrorException, 0);
         return;
     }
+
+    // si no tiene página física asignada
+    if (pageTable[vpn].disk) {
+#ifdef VM
+        CoreEntry *entry = coreMap->Remove();
+        pageTable[vpn].physicalPage = entry->physicalPage;
+        if (entry->space != NULL) {
+            // la página física ya estaba asignada
+            if (entry->space == this) {
+                // si estaba asignada a este mismo address space
+                // invalidar la entrada en la TLB si existe y actualizar pageTable
+                for (int i = 0; i < TLBSize; i++) {
+                    if (machine->tlb[i].valid
+                                    && machine->tlb[i].virtualPage == entry->virtualPage) {
+                        pageTable[entry->virtualPage].dirty = machine->tlb[i].dirty;
+                        machine->tlb[i].valid = false;
+                        break;
+                    }
+                }
+            }
+            // guardar la página en disco, si corresponde
+            entry->space->SaveToDisk(entry->virtualPage);
+        }
+        entry->space = this;
+        entry->virtualPage = vpn;
+#endif
+
+        // si la página no está inicializada
+        if (!pageTable[vpn].init) {
+
+            DEBUG('v', "Se inicializa la página %d desde el ejecutable\n", vpn);
+
+            int physAddr = pageTable[vpn].physicalPage * PageSize;
+
+            bzero(machine->mainMemory + physAddr, PageSize); // inicializa en cero la página
+
+            // copia segmento de code e initData, si corresponde
+            if (noffH.code.size > 0) {
+                CopyToAddrSpace(noffH.code, vpn);
+            }
+            if (noffH.initData.size > 0) {
+                CopyToAddrSpace(noffH.initData, vpn);
+            }
+
+            pageTable[vpn].init = true;
+            pageTable[vpn].dirty = true;  // la marco como sucia para que cuando se
+                                          // retire de memoria se la grabe en el swap
+        } else {
+            // copia la página desde el archivo swap a la memoria principal
+            RestoreFromDisk(vpn);
+            pageTable[vpn].dirty = false;  // marca la página como limpia
+        }
+        pageTable[vpn].disk = false;  // la página está en memoria
+#ifdef VM
+        coreMap->Append(entry);
+#endif
+    }
+
     int index = machine->tlbIndex;
+    TranslationEntry outgoingEntry = machine->tlb[index];
+    if (outgoingEntry.valid) {
+        // actualizo la entrada del address space con la de la TLB
+        pageTable[outgoingEntry.virtualPage].dirty = outgoingEntry.dirty;
+    }
     machine->tlb[index] = pageTable[vpn];
     machine->tlbIndex = (index + 1) % TLBSize;
-
-    // si la página no está inicializada
-    if (!pageTable[vpn].init) {
-        int physAddr = pageTable[vpn].physicalPage * PageSize;
-
-        bzero(machine->mainMemory + physAddr, PageSize); // inicializa en cero la página
-
-        // copia segmento de code e initData si corresponde
-        if (noffH.code.size > 0) {
-            CopyToAddrSpace(noffH.code, vpn);
-        }
-        if (noffH.initData.size > 0) {
-            CopyToAddrSpace(noffH.initData, vpn);
-        }
-
-        pageTable[vpn].init = true;
-    }
 }
 
 //----------------------------------------------------------------------
@@ -321,3 +430,50 @@ AddrSpace::DumpPageTable()
                         entry.dirty ? "true" : "false");
     }
 }
+
+void
+AddrSpace::DumpExec()
+{
+    ASSERT(noffH.code.virtualAddr == 0 &&
+        (noffH.initData.size == 0 || noffH.initData.virtualAddr == noffH.code.size));
+    int size = noffH.code.size + noffH.initData.size;
+    char buffer[size];
+    exec->ReadAt(buffer, noffH.code.size, noffH.code.inFileAddr);
+    exec->ReadAt(buffer + noffH.code.size, noffH.initData.size, noffH.initData.inFileAddr);
+    int vpn = 0;
+    for (int i = 0; i < size / 4; i++) {
+        if ((i * 4) % PageSize == 0) {
+            printf("Virtual page %d\n", vpn++);
+            printf("--------------\n");
+        }
+        printf("%4d: 0x%02x 0x%02x 0x%02x 0x%02x\n", i * 4,
+                        (unsigned char) buffer[i * 4 + 0],
+                        (unsigned char) buffer[i * 4 + 1],
+                        (unsigned char) buffer[i * 4 + 2],
+                        (unsigned char) buffer[i * 4 + 3]);
+    }
+    fflush(stdout);
+}
+
+void
+AddrSpace::DumpSwap()
+{
+    int size = swap->Length();
+    printf("Longitud del archivo SWAP %d\n", size);
+    char buffer[size];
+    swap->ReadAt(buffer, size, 0);
+    int vpn = 0;
+    for (int i = 0; i < size / 4; i++) {
+        if ((i * 4) % PageSize == 0) {
+            printf("Virtual page %d\n", vpn++);
+            printf("--------------\n");
+        }
+        printf("%4d: 0x%02x 0x%02x 0x%02x 0x%02x\n", i * 4,
+                        (unsigned char) buffer[i * 4 + 0],
+                        (unsigned char) buffer[i * 4 + 1],
+                        (unsigned char) buffer[i * 4 + 2],
+                        (unsigned char) buffer[i * 4 + 3]);
+    }
+    fflush(stdout);
+}
+

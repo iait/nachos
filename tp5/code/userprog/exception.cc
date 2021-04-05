@@ -77,7 +77,7 @@ ExceptionHandler(ExceptionType which)
         {
             DEBUG('u', "Programa de usuario hace llamada a Exit.\n");
             int status = machine->ReadRegister(4);
-            DEBUG('u', "Se termina hilo <%s> con estado %d\n", currentThread->getName(), status);
+            DEBUG('e', "Se termina hilo <%s> con estado %d\n", currentThread->getName(), status);
             currentThread->Finish(status);
             break;
         }
@@ -245,6 +245,13 @@ ExceptionHandler(ExceptionType which)
     {
         int badVirtAddr = machine->ReadRegister(BadVAddrReg);
         printf("AddressErrorException en dirección virtual %d\n", badVirtAddr);
+        currentThread->Finish(-1);
+        ASSERT(false);
+        break;
+    }
+    case IllegalInstrException:
+    {
+        printf("IllegalInstrException\n");
         currentThread->Finish(-1);
         ASSERT(false);
         break;

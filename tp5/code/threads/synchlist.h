@@ -29,9 +29,12 @@ class SynchList {
 
     void Append(Item item);	// append item to the end of the list,
 				// and wake up any thread waiting in remove
+    void Append(int key, Item item);
+
     Item Remove();		// remove the first item from the front of
 				// the list, waiting if the list is empty
-				
+    Item Remove(int key);
+
     void Apply(void (*func)(Item));
 				// apply function to every item in the list
 
@@ -53,8 +56,7 @@ SynchList<Item>::SynchList()
 {
     list = new List<Item>;
     lock = new Lock("list lock"); 
-    listEmpty = new Condition("list empty cond",lock);
-    // original // listEmpty = new Condition("list empty cond");
+    listEmpty = new Condition("list empty cond", lock);
 }
 
 //----------------------------------------------------------------------
@@ -84,8 +86,17 @@ SynchList<Item>::Append(Item item)
 {
     lock->Acquire();		// enforce mutual exclusive access to the list 
     list->Append(item);
-    listEmpty->Signal();	// wake up a waiter, if any
-    // original // listEmpty->Signal(lock);	// wake up a waiter, if any
+    listEmpty->Broadcast();	// wake up waiters
+    lock->Release();
+}
+
+template <class Item>
+void
+SynchList<Item>::Append(int key, Item item)
+{
+    lock->Acquire();
+    list->Append(key, item);
+    listEmpty->Broadcast();
     lock->Release();
 }
 
@@ -104,11 +115,23 @@ SynchList<Item>::Remove()
     Item item;
 
     lock->Acquire();			// enforce mutual exclusion
-    while (list->IsEmpty())
-	listEmpty->Wait();		// wait until list isn't empty
-	// original // listEmpty->Wait(lock);		// wait until list isn't empty
+    while (list->IsEmpty()) {
+        listEmpty->Wait();		// wait until list isn't empty
+    }
     item = list->Remove();
-    //ASSERT(item != NULL);
+    lock->Release();
+    return item;
+}
+
+template <class Item>
+Item
+SynchList<Item>::Remove(int key)
+{
+    Item item;
+    lock->Acquire();
+    while (!list->Remove(key, &item)) {
+        listEmpty->Wait();
+    }
     lock->Release();
     return item;
 }

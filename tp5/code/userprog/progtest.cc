@@ -103,8 +103,8 @@ StartProcess(const char *program)
         ASSERT(false);
         return -1;
     }
-    space = new AddrSpace(executable);
     Thread *thread = new Thread(filename, true);
+    space = new AddrSpace(executable, thread->getSpaceId());
     thread->space = space;
 
 //    delete executable;
