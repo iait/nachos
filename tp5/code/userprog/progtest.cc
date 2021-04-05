@@ -107,7 +107,7 @@ StartProcess(const char *program)
     Thread *thread = new Thread(filename, true);
     thread->space = space;
 
-    delete executable;
+//    delete executable;
     delete [] filename;
 
     char *args = new char[strlen(program) + 1];

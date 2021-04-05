@@ -17,6 +17,7 @@
 #include "filesys.h"
 #include "syscall.h"
 #include "bitmap.h"
+#include "noff.h"
 
 #define UserStackSize		1024 	// increase this as necessary!
 
@@ -46,9 +47,12 @@ class AddrSpace {
 
   private:
     // Agregado. Copia desde el archivo al address space.
-    void CopyToAddrSpace(OpenFile *file, int posInFile, int bytesToCopy, int virtAddr);
+    void CopyToAddrSpace(Segment seg, int virtAddr);
 
     void DumpPageTable(); // para debug
+
+    OpenFile *exec;                     // ejecutable del programa
+    NoffHeader noffH;
 
     TranslationEntry *pageTable;	// Assume linear page table translation
 					// for now!

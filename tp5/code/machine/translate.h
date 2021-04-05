@@ -40,6 +40,8 @@ class TranslationEntry {
 			// page is referenced or modified.
     bool dirty;         // This bit is set by the hardware every time the
 			// page is modified.
+    bool init;          // Indica si la página está inicializada en la memoria
+                        // física o hay que cargarda desde el ejecutable.
 };
 
 #endif
