@@ -32,9 +32,11 @@ class Statistics {
     int numDiskWrites;		// number of disk write requests
     int numConsoleCharsRead;	// number of characters read from the keyboard
     int numConsoleCharsWritten; // number of characters written to the display
-    int numPageFaults;		// number of virtual memory page faults
     int numPacketsSent;		// number of packets sent over the network
     int numPacketsRecvd;	// number of packets received over the network
+
+    int numPageHit;             // número de páginas encontradas en la tlb
+    int numPageMiss;            // número de páginas no encontradas en la tlb
 
     Statistics(); 		// initialize everything to zero
 

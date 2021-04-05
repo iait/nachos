@@ -227,9 +227,12 @@ Machine::Translate(int virtAddr, int* physAddr, int size, bool writing)
         }
 	if (entry == NULL) {				// not found
     	    DEBUG('a', "*** no valid TLB entry found for this virtual page!\n");
+    	    stats->numPageMiss++;
     	    return PageFaultException;		// really, this is a TLB fault,
 						// the page may be in memory,
 						// but not in the TLB
+	} else {
+            stats->numPageHit++;
 	}
     }
 
