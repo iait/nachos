@@ -23,6 +23,7 @@ Statistics::Statistics()
     numConsoleCharsRead = numConsoleCharsWritten = 0;
     numPacketsSent = numPacketsRecvd = 0;
     numPageHit = numPageMiss = 0;
+    numPageToDisk = numPageFromDisk = 0;
 }
 
 //----------------------------------------------------------------------
@@ -42,4 +43,5 @@ Statistics::Print()
     printf("Network I/O: packets received %d, sent %d\n", numPacketsRecvd, 
 	numPacketsSent);
     printf("Page hit: %d, page miss: %d\n", numPageHit, numPageMiss);
+    printf("Page to disk: %d, page from disk: %d\n", numPageToDisk, numPageFromDisk);
 }

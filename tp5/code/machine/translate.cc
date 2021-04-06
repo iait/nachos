@@ -33,6 +33,7 @@
 #include "machine.h"
 #include "addrspace.h"
 #include "system.h"
+#include "coremap.h"
 
 // Routines for converting Words and Short Words to and from the
 // simulated machine's format of little endian.  These end up
@@ -252,6 +253,14 @@ Machine::Translate(int virtAddr, int* physAddr, int size, bool writing)
 	return BusErrorException;
     }
     entry->use = true;		// set the use, dirty bits
+#ifdef VM
+    // saca la página de la lista y la pone al final si se usa la política de LRU
+    if (lru) {
+        CoreEntry *coreEntry = coreMap->Remove(pageFrame);
+        coreMap->Append(pageFrame, coreEntry);
+    }
+#endif
+    //
     if (writing) {
 	entry->dirty = true;
     }

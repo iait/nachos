@@ -50,3 +50,25 @@ Se agrega un OpenFile llamado swap al AddrSpace para paginación.
 Con la bandera de debug "e" se imprime el estado de salida de los procesos al hacer la llamada a 
 sistema Exit. Con la bandera "v" se imprime información de memoria virtual.
 
+Se reducen el número de páginas físicas a 16 para estas pruebas ....
+
+
+Aclarar que la implementación del LRU es bastante tosca y solo sirve para pruebas.
+
+
+$ ../vm/nachos -x sort
+Page hit: 44067596, page miss: 19582
+Page to disk: 16118, page from disk: 19543
+
+$ ../vm/nachos -x sort -lru
+Page hit: 44066961, page miss: 17043
+Page to disk: 14964, page from disk: 14941
+
+$ ../vm/nachos -x matmult
+Page hit: 716044, page miss: 8160
+Page to disk: 1008, page from disk: 8114
+
+$ ../vm/nachos -x matmult -lru
+Page hit: 715185, page miss: 6450
+Page to disk: 55, page from disk: 5207
+

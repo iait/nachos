@@ -54,6 +54,7 @@ extern PostOffice* postOffice;
 #ifdef VM
 #include "coremap.h"
 extern SynchList<CoreEntry*> *coreMap;
+extern bool lru; // indica si se utiliza la política Least Recently Used para paginación
 #endif
 
 #endif // SYSTEM_H

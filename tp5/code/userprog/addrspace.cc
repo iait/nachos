@@ -176,6 +176,7 @@ AddrSpace::SaveToDisk(int vpn)
     DEBUG('v', "Guarda la página %d en el archivo swap del disco\n", vpn);
     int from = pageTable[vpn].physicalPage * PageSize;
     swap->WriteAt(machine->mainMemory + from, PageSize, vpn * PageSize);
+    stats->numPageToDisk++;
 //    DumpSwap();
 }
 
@@ -191,6 +192,7 @@ AddrSpace::RestoreFromDisk(int vpn)
     DEBUG('v', "Se restaura la página %d desde el archivo swap del disco\n", vpn);
     int from = pageTable[vpn].physicalPage * PageSize;
     swap->ReadAt(machine->mainMemory + from, PageSize, vpn * PageSize);
+    stats->numPageFromDisk++;
 }
 
 //----------------------------------------------------------------------
@@ -268,7 +270,7 @@ AddrSpace::LoadPageInTlb(int vpn)
         }
         pageTable[vpn].disk = false;  // la página está en memoria
 #ifdef VM
-        coreMap->Append(entry);
+        coreMap->Append(entry->physicalPage, entry);
 #endif
     }
 

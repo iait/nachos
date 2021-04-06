@@ -43,6 +43,7 @@ PostOffice *postOffice;
 
 #ifdef VM
 SynchList<CoreEntry*> *coreMap;
+bool lru;
 #endif
 
 
@@ -99,6 +100,9 @@ Initialize(int argc, char **argv)
     bool preemptiveScheduling = false;
     long long timeSlice;
     
+#ifdef VM
+    lru = false;
+#endif
 #ifdef USER_PROGRAM
     bool debugUserProg = false;	// single step user program
 #endif
@@ -136,6 +140,11 @@ Initialize(int argc, char **argv)
 	        argCount = 2;
 	    }
 	}
+#ifdef VM
+        if (!strcmp(*argv, "-lru")) {
+            lru = true;
+        }
+#endif
 #ifdef USER_PROGRAM
 	if (!strcmp(*argv, "-s"))
 	    debugUserProg = true;
@@ -205,7 +214,7 @@ Initialize(int argc, char **argv)
         CoreEntry *entry = new CoreEntry();
         entry->physicalPage = i;
         entry->space = NULL;
-        coreMap->Append(entry);
+        coreMap->Append(i, entry);
     }
 #endif
 }

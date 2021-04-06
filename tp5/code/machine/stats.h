@@ -38,6 +38,9 @@ class Statistics {
     int numPageHit;             // número de páginas encontradas en la tlb
     int numPageMiss;            // número de páginas no encontradas en la tlb
 
+    int numPageToDisk;          // número de veces que se graba una página en disco
+    int numPageFromDisk;        // número de veces que se carga una página desde el disco
+
     Statistics(); 		// initialize everything to zero
 
     void Print();		// print collected statistics

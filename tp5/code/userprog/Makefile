@@ -1400,7 +1400,7 @@ translate.o: ../machine/translate.cc /usr/include/stdc-predef.h \
  ../threads/scheduler.h ../threads/synchlist.h ../threads/list.h \
  ../threads/synch.h ../machine/interrupt.h ../threads/list.h \
  ../machine/stats.h ../machine/timer.h ../userprog/synchconsole.h \
- ../machine/console.h ../threads/synch.h
+ ../machine/console.h ../threads/synch.h ../vm/coremap.h
 synchconsole.o: ../userprog/synchconsole.cc /usr/include/stdc-predef.h \
  ../userprog/synchconsole.h ../machine/console.h ../threads/copyright.h \
  ../threads/utility.h ../threads/copyright.h ../machine/sysdep.h \
