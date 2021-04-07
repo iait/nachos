@@ -149,14 +149,23 @@ AddrSpace::~AddrSpace()
    for (unsigned int i = 0; i < numPages; i++) {
       memMap->Clear(pageTable[i].physicalPage);
    }
-   delete pageTable;
    delete exec;
 #ifdef VM
+   // limpia las páginas del coremap y las mueve al principio de la lista
+   CoreEntry *entry;
+   for (unsigned int i = 0; i < numPages; i++) {
+       if (!pageTable[i].disk) {
+           entry = coreMap->Remove(pageTable[i].physicalPage);
+           entry->space = NULL;
+           coreMap->Prepend(entry->physicalPage, entry);
+       }
+   }
    delete swap;
    bool ret = fileSystem->Remove(name);
    ASSERT(ret);
    delete name;
 #endif
+   delete pageTable;
 }
 
 //----------------------------------------------------------------------

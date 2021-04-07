@@ -27,8 +27,10 @@ class SynchList {
     SynchList();		// initialize a synchronized list
     ~SynchList();		// de-allocate a synchronized list
 
-    void Append(Item item);	// append item to the end of the list,
-				// and wake up any thread waiting in remove
+    void Prepend(Item item);    // pone un elemento al principio de la lista
+    void Prepend(int key, Item);
+
+    void Append(Item item);	// pone un elemento al final de la lista
     void Append(int key, Item item);
 
     Item Remove();		// remove the first item from the front of
@@ -70,6 +72,34 @@ SynchList<Item>::~SynchList()
     delete list; 
     delete lock;
     delete listEmpty;
+}
+
+//----------------------------------------------------------------------
+// SynchList::Prepend
+//      Prepend an "item" to the head of the list.  Wake up anyone
+//      waiting for an element to be prepended.
+//
+//      "item" is the thing to put on the list
+//----------------------------------------------------------------------
+
+template <class Item>
+void
+SynchList<Item>::Prepend(Item item)
+{
+    lock->Acquire();            // enforce mutual exclusive access to the list
+    list->Prepend(item);
+    listEmpty->Broadcast();     // wake up waiters
+    lock->Release();
+}
+
+template <class Item>
+void
+SynchList<Item>::Prepend(int key, Item item)
+{
+    lock->Acquire();
+    list->Prepend(key, item);
+    listEmpty->Broadcast();
+    lock->Release();
 }
 
 //----------------------------------------------------------------------

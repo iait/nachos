@@ -44,9 +44,10 @@ class List {
     List();			// initialize the list
     ~List();			// de-allocate the list
 
+    void Prepend(int key, Item item); // Pone un elemento con clave al principio de la lista
     void Prepend(Item item); 	// Put item at the beginning of the list
 
-    void Append(int key, Item item);   // Pone un elemento con clave al final de la lista
+    void Append(int key, Item item); // Pone un elemento con clave al final de la lista
     void Append(Item item); 	// Put item at the end of the list
 
     Item Remove(); 	 	// Take item off the front of the list
@@ -163,9 +164,9 @@ List<Item>::Append(Item item)
 
 template <class Item>
 void
-List<Item>::Prepend(Item item)
+List<Item>::Prepend(int key, Item item)
 {
-    ListNode *element = new ListNode(item, 0);
+    ListNode *element = new ListNode(item, key);
 
     if (IsEmpty()) {		// list is empty
 	first = element;
@@ -174,6 +175,12 @@ List<Item>::Prepend(Item item)
 	element->next = first;
 	first = element;
     }
+}
+template <class Item>
+void
+List<Item>::Prepend(Item item)
+{
+    Prepend(0, item);
 }
 
 //----------------------------------------------------------------------
