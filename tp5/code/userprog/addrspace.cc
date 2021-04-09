@@ -408,7 +408,16 @@ AddrSpace::InitRegisters()
 //----------------------------------------------------------------------
 
 void AddrSpace::SaveState() 
-{}
+{
+#ifdef USE_TLB
+    for (int i = 0; i < TLBSize; i++) {
+        if (machine->tlb[i].valid) {
+            // actualizo la entrada del address space con la de la TLB
+            pageTable[machine->tlb[i].virtualPage].dirty = machine->tlb[i].dirty;
+        }
+    }
+#endif
+}
 
 //----------------------------------------------------------------------
 // AddrSpace::RestoreState
